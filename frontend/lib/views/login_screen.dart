@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/config/service_locator.dart';
+import 'package:frontend/core/helpers/ui/app_feedback.dart';
 import 'package:frontend/data/repository/auth/login_repository.dart';
 import 'package:frontend/viewmodels/auth/login/login_bloc.dart';
 import 'package:frontend/viewmodels/auth/login/login_event.dart';
 import 'package:frontend/viewmodels/auth/login/login_state.dart';
 import 'package:frontend/views/homepage.dart';
 import 'package:frontend/views/signup_screen.dart';
-import 'package:frontend/core/helpers/snackbarhelper.dart';
+import 'package:frontend/widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,31 +20,14 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => LoginBloc(getIt<LoginRepository>()),
       child: BlocListener<LoginBloc, LoginState>(
-        listener: (context, state) {
-          if (state is LoginSuccess) {
-            SnackbarHelper.showSnackbar(
-              context,
-              state.message,
-              status: SnackStatus.success,
-            );
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomePage()),
-            );
-          } else if (state is LoginFailure) {
-            SnackbarHelper.showSnackbar(
-              context,
-              state.errorMessage,
-              status: SnackStatus.error,
-            );
-          }
-        },
+        listener: _listener,
         child: Scaffold(
           body: BlocBuilder<LoginBloc, LoginState>(
             builder: (context, state) {
@@ -54,6 +38,18 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  void _listener(BuildContext context, LoginState state) {
+    if (state is LoginSuccess) {
+      AppFeedback.success(context, state.message);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    } else if (state is LoginFailure) {
+      AppFeedback.error(context, state.errorMessage);
+    }
   }
 
   Widget _buildLoginForm(BuildContext context, bool isLoading) {
@@ -88,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     radius: 50,
                     backgroundColor: Colors.white,
                     child: Icon(
-                      Icons.luggage,
+                      Icons.flight,
                       size: 55,
                       color: Color(0xFF0288D1),
                     ),
@@ -104,31 +100,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                TextField(
+                CustomTextFieldWidget(
                   controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                  label: "Email",
+                  icon: Icons.email_outlined,
+                  obscureText: false,
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 16),
-                TextField(
+                CustomTextFieldWidget(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  label: "Password",
+                  icon: Icons.lock_outline,
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
-                    filled: true,
-                    fillColor: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -151,13 +144,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   child: isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+
+                            SizedBox(width: 12),
+
+                            Text(
+                              "Signing In...",
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         )
                       : const Text('Log In', style: TextStyle(fontSize: 18)),
                 ),

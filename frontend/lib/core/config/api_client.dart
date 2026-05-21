@@ -17,7 +17,7 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           // 自动加 token（以后做 auth 用）
-          // options.headers["Authorization"] = "Bearer token";
+          options.headers["Authorization"] = "Bearer token";
           return handler.next(options);
         },
         onError: (error, handler) {

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:frontend/views/homepage.dart';
 import 'package:frontend/views/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -101,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
                         radius: 80,
                         backgroundColor: Colors.white,
                         child: Icon(
-                          Icons.luggage, // 与原 React 版本完全相同的行李箱图标
+                          Icons.flight, // 与原 React 版本完全相同的行李箱图标
                           size: 90,
                           color: const Color(0xFF0288D1), // 深一些的蓝色，醒目但柔和
                         ),

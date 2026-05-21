@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/helpers/snackbarhelper.dart';
-import 'package:frontend/views/homepage.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/core/config/service_locator.dart';
+import 'package:frontend/core/helpers/ui/app_feedback.dart';
+import 'package:frontend/viewmodels/auth/signup/signup_bloc.dart';
+import 'package:frontend/viewmodels/auth/signup/signup_event.dart';
+import 'package:frontend/viewmodels/auth/signup/signup_state.dart';
 import 'package:frontend/views/login_screen.dart';
+import 'package:frontend/data/repository/auth/signup_repository.dart';
+import 'package:frontend/widgets/custom_text_field.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -12,37 +18,49 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
+  bool _obscurePassword = true;
 
-  void _handleSignup() async {
-    if (_nameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-        SnackbarHelper.showSnackbar(
-          context,
-          "Please fill in all required fields",
-          status: SnackStatus.error,
-        );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _isLoading = false);
-
-    // 注册成功，直接进入主页（替换整个栈）
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    }
+  void _handleSignup(BuildContext context) async {
+    context.read<SignupBloc>().add(
+      SignupSubmittedEvent(
+        name: _nameController.text.trim(),
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => SignupBloc(getIt<SignupRepository>()),
+      child: BlocConsumer<SignupBloc, SignupState>(
+        listener: _listener,
+        builder: (context, state) {
+          final isLoading = state is SignupLoading;
+          return _buildSignupForm(context, isLoading);
+        },
+      ),
+    );
+  }
+
+  void _listener(BuildContext context, SignupState state) {
+    if (state is SignupSuccess) {
+      AppFeedback.success(context, state.message);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    } else if (state is SignupFailure) {
+      AppFeedback.error(context, state.errorMessage);
+    }
+  }
+
+  Widget _buildSignupForm(BuildContext context, bool isLoading) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -74,49 +92,49 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  TextField(
+                  CustomTextFieldWidget(
                     controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                    label: "Name",
+                    icon: Icons.person_outline,
+                    obscureText: false,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  CustomTextFieldWidget(
+                    controller: _usernameController,
+                    label: "Username",
+                    icon: Icons.account_circle_outlined,
+                    obscureText: false,
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextFieldWidget(
                     controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                    label: "Email",
+                    icon: Icons.email_outlined,
+                    obscureText: false,
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  CustomTextFieldWidget(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    label: "Password",
+                    icon: Icons.lock_outline,
+                    obscureText: _obscurePassword,
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _handleSignup,
+                    onPressed: isLoading ? null : () => _handleSignup(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0288D1),
                       foregroundColor: Colors.white,
@@ -125,14 +143,30 @@ class _SignupScreenState extends State<SignupScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                    child: isLoading
+                        ?  const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+
+                              SizedBox(width: 12),
+
+                              Text(
+                                "Signing Up...",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           )
                         : const Text('Sign Up', style: TextStyle(fontSize: 18)),
                   ),
