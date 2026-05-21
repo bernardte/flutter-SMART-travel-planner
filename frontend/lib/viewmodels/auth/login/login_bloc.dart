@@ -23,8 +23,8 @@ class LoginBloc extends Bloc<LoginSubmittedEvent, LoginState> {
       final response = await repository.login(event.email, event.password);
 
       if (response.success) {
-        
-        emit(LoginSuccess(user: response.user, message: response.message));
+
+        emit(LoginSuccess(user: response.user!, message: response.message));
       } else {
         emit(LoginFailure(response.message));
       }
