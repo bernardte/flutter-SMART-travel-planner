@@ -18,7 +18,7 @@ import favouriteRoute from "./routes/favourite.route.js";
 import deleteTempfileScheduler from "./utils/helpers/deleteTempFileScheduler.js";
 
 const app = express();
-const PORT = env.PORT;
+const PORT = env.PORT || 8000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
