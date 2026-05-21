@@ -14,10 +14,6 @@ class LoginRepository {
     //! call api and get response data
     final response = await remoteSource.login(request);
     //! return response data as readable object;
-    return LoginResponse(
-      success: response["success"],
-      message: response["message"],
-      user: response["user"],
-    );
+    return LoginResponse.fromJson(response);
   }
 }

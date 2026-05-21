@@ -9,6 +9,10 @@ class LoginResponse {
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     final data = json["data"];
+    
+    if(data == null){
+      throw Exception("LoginResponse: data is null");
+    }
 
     return LoginResponse(
       success: json["success"] ?? false,
