@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/config/service_locator.dart';
 import 'package:frontend/core/helpers/ui/app_feedback.dart';
-import 'package:frontend/viewmodels/auth/signup/signup_bloc.dart';
-import 'package:frontend/viewmodels/auth/signup/signup_event.dart';
-import 'package:frontend/viewmodels/auth/signup/signup_state.dart';
-import 'package:frontend/views/login_screen.dart';
+import 'package:frontend/features/auth/bloc/signup/signup_bloc.dart';
+import 'package:frontend/features/auth/bloc/signup/signup_event.dart';
+import 'package:frontend/features/auth/bloc/signup/signup_state.dart';
+import 'package:frontend/features/auth/views/login_screen.dart';
 import 'package:frontend/data/repository/auth/signup_repository.dart';
 import 'package:frontend/widgets/custom_text_field.dart';
 

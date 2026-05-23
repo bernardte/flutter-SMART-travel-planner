@@ -18,7 +18,11 @@ import favouriteRoute from "./routes/favourite.route.js";
 import deleteTempfileScheduler from "./utils/helpers/deleteTempFileScheduler.js";
 
 const app = express();
-const PORT = env.PORT || 8000;
+const PORT = typeof env.PORT === "string"
+  ? parseInt(env.PORT, 10) || 8000
+  : typeof env.PORT === "number"
+  ? env.PORT
+  : 8000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,15 +41,6 @@ const limiter = rateLimit({
   limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
-});
-
-app.use(async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await connectOnce();
-    next();
-  } catch (err) {
-    next(err);
-  }
 });
 
 app.use(cookieParser()); //get the cookie from request and set the cookie in the response.
@@ -108,9 +103,19 @@ if(env.NODE_ENV === "production"){
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  deleteTempfileScheduler.start();
-});
+async function startServer() {
+  try {
+    await connectOnce();
 
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server is running on port ${PORT}`);
+      deleteTempfileScheduler.start();
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
