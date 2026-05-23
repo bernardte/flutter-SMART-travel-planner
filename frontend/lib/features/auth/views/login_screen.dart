@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/config/service_locator.dart';
 import 'package:frontend/core/helpers/ui/app_feedback.dart';
 import 'package:frontend/data/repository/auth/login_repository.dart';
-import 'package:frontend/viewmodels/auth/login/login_bloc.dart';
-import 'package:frontend/viewmodels/auth/login/login_event.dart';
-import 'package:frontend/viewmodels/auth/login/login_state.dart';
-import 'package:frontend/views/homepage.dart';
-import 'package:frontend/views/signup_screen.dart';
+import 'package:frontend/features/auth/bloc/login/login_bloc.dart';
+import 'package:frontend/features/auth/bloc/login/login_event.dart';
+import 'package:frontend/features/auth/bloc/login/login_state.dart';
+import 'package:frontend/features/home/views/homepage.dart';
+import 'package:frontend/features/auth/views/signup_screen.dart';
 import 'package:frontend/widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {

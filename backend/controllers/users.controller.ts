@@ -133,6 +133,7 @@ const logoutAccount = async (
 
 const getLoginUser = async (req: Request, res: Response) => {
   const userId = req.user?._id;
+  console.log("get login user: ", userId);
 
   const user = await User.findById({ _id: userId }).select("-password");
 
