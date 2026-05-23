@@ -11,6 +11,7 @@ class LoginRepository {
     try {
       //! create request model for normalized parsing JSON data
       final request = LoginRequestModel(email: email, password: password);
+
       //! call api and get response data
       final response = await remoteSource.login(request);
       if(!response.isSuccess){

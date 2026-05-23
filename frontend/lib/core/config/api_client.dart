@@ -10,15 +10,29 @@ class ApiClient {
   static String get baseUrl => _getBaseUrl();
 
   static String _getBaseUrl() {
-    if (kIsWeb) return dotenv.get("DEV_BASE_URL");
-    if (Platform.isAndroid) return dotenv.get("ANDROID_BASE_URL");
-    if (Platform.isIOS) return dotenv.get("IOS_BASE_URL", fallback: dotenv.get("DEV_BASE_URL"));
+    if (kIsWeb) {
+      print("WEB URL: ${dotenv.get("DEV_BASE_URL")}");
+      return dotenv.get("DEV_BASE_URL");
+    }
+
+    if (Platform.isAndroid) {
+      print("ANDROID URL: ${dotenv.get("ANDROID_BASE_URL")}");
+      return dotenv.get("ANDROID_BASE_URL");
+    }
+
+    if (Platform.isIOS) {
+      print("IOS URL: ${dotenv.get("IOS_BASE_URL")}");
+      return dotenv.get("IOS_BASE_URL", fallback: dotenv.get("DEV_BASE_URL"));
+    }
+
     return dotenv.get("DEV_BASE_URL");
   }
 
+  static final devBaseUrl = dotenv.get("DEV_BASE_URL");
+
   static final Dio dio = Dio(
     BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: devBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {"Content-Type": "application/json"},
@@ -28,9 +42,9 @@ class ApiClient {
   // Separate Dio for refresh — never goes through the main interceptor
   static final Dio _refreshDio = Dio(
     BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      baseUrl: devBaseUrl,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
       headers: {"Content-Type": "application/json"},
     ),
   );

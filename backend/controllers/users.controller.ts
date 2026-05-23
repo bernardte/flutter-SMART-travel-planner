@@ -76,6 +76,7 @@ const loginAccount = async (
   res: Response,
 ) => {
   const { email, password } = req.body;
+  console.log("login: ", req.body);
 
   if (!email?.trim() || !password?.trim()) {
     throw new AppError(400, "Email and password are required.");
