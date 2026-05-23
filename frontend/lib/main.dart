@@ -19,9 +19,7 @@ Future<void> main() async {
   setupServiceLocator();
   await dotenv.load(fileName: ".env");
   ApiClient.init();
-  final globalCubit = getIt<GlobalCubit>();
-  await globalCubit.initAuth();
-  runApp(BlocProvider.value(value: globalCubit, child: const MyApp()));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

@@ -12,6 +12,7 @@ class AuthLoginRemoteSource {
         data: request.toJson(),
       );
 
+      debugPrint("Login API Request: ${request}");
       debugPrint("Login API Response: ${response.data}");
 
       return ApiResult.success(response.data);

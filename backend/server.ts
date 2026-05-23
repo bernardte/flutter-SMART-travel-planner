@@ -43,15 +43,6 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use(async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await connectOnce();
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
-
 app.use(cookieParser()); //get the cookie from request and set the cookie in the response.
 app.use(express.json());
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -112,9 +103,19 @@ if(env.NODE_ENV === "production"){
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  deleteTempfileScheduler.start();
-});
+async function startServer() {
+  try {
+    await connectOnce();
 
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server is running on port ${PORT}`);
+      deleteTempfileScheduler.start();
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
