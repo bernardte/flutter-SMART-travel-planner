@@ -25,4 +25,15 @@ class UserModel {
       token: json["token"] ?? "",
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "_id": id,
+      "username": username,
+      "name": name,
+      "email": email,
+      "profilePicture": profilePicture,
+      "token": token,
+    };
+  }
 }

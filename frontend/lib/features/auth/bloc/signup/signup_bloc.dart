@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/data/repository/auth/signup_repository.dart';
-import 'package:frontend/viewmodels/auth/signup/signup_event.dart';
-import 'package:frontend/viewmodels/auth/signup/signup_state.dart';
+import 'package:frontend/features/auth/bloc/signup/signup_event.dart';
+import 'package:frontend/features/auth/bloc/signup/signup_state.dart';
 
 class SignupBloc extends Bloc<SignupEvent, SignupState> {
   final SignupRepository repository;

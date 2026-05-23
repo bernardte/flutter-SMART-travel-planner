@@ -12,6 +12,7 @@ export interface DecodedToken extends JwtPayload {
 export const protectRoute = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies.accessToken;
+    console.log("Token from cookies: ", token);
     if (!token) {
       throw new AppError(401, "Unauthorized");
     }
