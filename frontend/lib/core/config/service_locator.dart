@@ -8,7 +8,6 @@ import 'package:frontend/data/sources/auth/login_api.dart';
 import 'package:frontend/data/sources/auth/logout_api.dart';
 import 'package:frontend/data/sources/auth/signup_api.dart';
 import 'package:frontend/data/sources/user/get_login_user_api.dart';
-import 'package:frontend/global/global_cubit.dart';
 import 'package:get_it/get_it.dart';
 
 final getIt = GetIt.instance;
@@ -50,10 +49,5 @@ void setupServiceLocator() {
 
   getIt.registerLazySingleton<UserRepository>(
     () => UserRepository(getIt<GetLoginUserApiSource>()),
-  );
-
-  //! Global Cubit
-  getIt.registerLazySingleton<GlobalCubit>(
-    () => GlobalCubit(getIt<UserRepository>(), getIt<LogoutRepository>()),
   );
 }

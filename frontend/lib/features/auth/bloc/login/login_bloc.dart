@@ -3,7 +3,6 @@ import 'package:frontend/core/config/service_locator.dart';
 import 'package:frontend/core/config/token_service.dart';
 import 'package:frontend/core/config/user_storage_service.dart';
 import 'package:frontend/data/repository/auth/login_repository.dart';
-import 'package:frontend/data/repository/user/user_repository.dart';
 import 'package:frontend/features/auth/bloc/login/login_event.dart';
 import 'package:frontend/features/auth/bloc/login/login_state.dart';
 

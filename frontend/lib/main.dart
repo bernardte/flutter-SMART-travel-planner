@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/core/config/api_client.dart';
 import 'package:frontend/core/config/service_locator.dart';
 import 'package:frontend/features/splash_screen/views/splash_screen.dart';
-import 'package:frontend/global/global_cubit.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +17,7 @@ Future<void> main() async {
   );
   setupServiceLocator();
   await dotenv.load(fileName: ".env");
+  await Hive.initFlutter();
   ApiClient.init();
   runApp(const MyApp());
 }

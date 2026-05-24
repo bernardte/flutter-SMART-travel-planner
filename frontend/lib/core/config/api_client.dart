@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/core/config/service_locator.dart';
 import 'package:frontend/core/config/token_service.dart';
-import 'package:frontend/global/global_cubit.dart';
+import 'package:frontend/data/repository/auth/logout_repository.dart';
 import 'dart:io';
+
 
 class ApiClient {
   static String get baseUrl => _getBaseUrl();
@@ -95,7 +96,7 @@ class ApiClient {
               }
             } else {
               // Refresh failed — force logout via GlobalCubit (context-safe)
-              await getIt<GlobalCubit>().logout();
+              await getIt<LogoutRepository>().logout();
               return handler.next(error);
             }
           }
