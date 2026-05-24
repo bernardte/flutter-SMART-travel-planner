@@ -97,7 +97,8 @@ class HomeContent extends StatelessWidget {
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
             // Recommended destinations title
             SliverToBoxAdapter(
-              child: _buildSectionTitle('✨ Popular Recommendations', 'View All'),
+              child:
+                  _buildSectionTitle('✨ Popular Recommendations', 'View All'),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             // Horizontal recommendation cards
