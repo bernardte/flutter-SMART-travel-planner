@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
 import '../../repositories/trip_repository.dart';
 import '../../models/trip_model.dart';
+import '../../core/utils/snackbar.dart';
 
 class EditTripScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -62,12 +63,7 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load trip: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed to load trip: $e');
       }
     }
   }
@@ -167,11 +163,7 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
 
   Future<void> _save() async {
     if (_countryCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a destination'),
-        ),
-      );
+      AppSnackbar.show(context, 'Please enter a destination');
       return;
     }
     setState(() => _saving = true);
@@ -184,20 +176,10 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
         endDate: _endDate,
         days: _itinerary,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Trip updated! ✅'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      AppSnackbar.success(context, 'Trip updated! ✅');
       if (mounted) context.go('/trips/${widget.tripId}');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed to update: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

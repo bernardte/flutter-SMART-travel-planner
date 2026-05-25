@@ -12,21 +12,24 @@ function generateTokensAndSetCookies(userId: ObjectId, res: Response) {
     expiresIn: "7d",
   });
 
+  // Keep cookies for web browser clients
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     sameSite: env.NODE_ENV === "production" ? "none" : "lax",
-    secure: env.NODE_ENV === "production", //? return boolean ? true : false
+    secure: env.NODE_ENV === "production",
   });
 
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     maxAge: 2 * 60 * 60 * 1000,
     sameSite: env.NODE_ENV === "production" ? "none" : "lax",
-    secure: env.NODE_ENV === "production", //? return boolean  ? true : false
+    secure: env.NODE_ENV === "production",
   });
 
-  return { accessToken };
+  // Return BOTH tokens so mobile clients (Flutter) can read them from JSON.
+  // The web app keeps using cookies — this change does not break anything.
+  return { accessToken, refreshToken };
 }
 
 export default generateTokensAndSetCookies;

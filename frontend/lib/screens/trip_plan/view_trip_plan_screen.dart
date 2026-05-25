@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart'; // for Clipboard
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../repositories/trip_plan_repository.dart';
 import '../../models/comment_model.dart';
+import '../../core/utils/snackbar.dart';
 
 class ViewTripPlanScreen extends ConsumerStatefulWidget {
   final String tripPlanId;
@@ -53,14 +54,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
       });
     } catch (e) {
       setState(() => _loading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackbar.error(context, 'Failed to load: $e');
     }
   }
 
@@ -72,12 +66,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
       final comment = await repo.createComment(widget.tripPlanId, _commentCtrl.text.trim());
       setState(() { _comments.add(comment); _commentCtrl.clear(); });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Failed to post comment'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed to post comment');
     } finally {
       if (mounted) setState(() => _submittingComment = false);
     }
@@ -89,12 +78,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
       await repo.deleteComment(widget.tripPlanId, commentId);
       setState(() => _comments.removeWhere((c) => c.id == commentId));
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Failed to delete comment'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed to delete comment');
     }
   }
 
@@ -108,12 +92,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
         _editingCommentId = null;
       });
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Failed to update comment'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed to update comment');
     }
   }
 
@@ -142,7 +121,10 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            onPressed: () => Share.share('Check out this travel guide: ${plan['title']}'),
+            onPressed: () {
+                Clipboard.setData(ClipboardData(text: 'Check out this travel guide: ${plan['title']}'));
+                AppSnackbar.success(context, 'Link copied to clipboard!');
+              },
           ),
           if (isOwner)
             IconButton(

@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../repositories/user_repository.dart';
 import '../../models/user_model.dart';
 import '../../models/travel_guide_model.dart';
+import '../../core/utils/snackbar.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String username;
@@ -53,14 +54,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
     } catch (e) {
       setState(() => _loading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load profile: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackbar.error(context, 'Failed to load profile: $e');
     }
   }
 
@@ -88,12 +82,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _followLoading = false);
     }
@@ -322,20 +311,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       );
                       ref.read(authProvider.notifier).updateUser(updated);
                       if (ctx.mounted) Navigator.pop(ctx);
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: const Text('Profile updated!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                      AppSnackbar.success(context, 'Profile updated!');
                       _load();
                     } catch (e) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      AppSnackbar.error(context, 'Failed: $e');
                     } finally {
                       setModal(() => saving = false);
                     }

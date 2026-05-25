@@ -1,5 +1,4 @@
 // lib/repositories/auth_repository.dart
-// Replaces frontend/src/api/auth.api.ts
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,12 +18,7 @@ class AuthRepository {
         'email': email,
         'password': password,
       });
-      final data = res.data['data'] ?? res.data;
-      await SecureStorage.saveAccessToken(data['accessToken'] ?? '');
-      if (data['refreshToken'] != null) {
-        await SecureStorage.saveRefreshToken(data['refreshToken']);
-      }
-      return UserModel.fromJson(data['user'] ?? data);
+      return _extractAndSaveTokens(res.data);
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
@@ -43,15 +37,46 @@ class AuthRepository {
         'email': email,
         'password': password,
       });
-      final data = res.data['data'] ?? res.data;
-      await SecureStorage.saveAccessToken(data['accessToken'] ?? '');
-      if (data['refreshToken'] != null) {
-        await SecureStorage.saveRefreshToken(data['refreshToken']);
-      }
-      return UserModel.fromJson(data['user'] ?? data);
+      return _extractAndSaveTokens(res.data);
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
+  }
+
+  /// Extracts tokens from the response and saves them to secure storage.
+  ///
+  /// Backend login/register response shape:
+  /// {
+  ///   "success": true,
+  ///   "data": {
+  ///     "_id": "...",
+  ///     "username": "...",
+  ///     "token": "<accessToken>",       ← key is "token", NOT "accessToken"
+  ///     "refreshToken": "<refresh>"     ← added to backend response (see backend fix)
+  ///   }
+  /// }
+  Future<UserModel> _extractAndSaveTokens(dynamic responseData) async {
+    final data = responseData['data'] ?? responseData;
+
+    // Access token: backend names this field "token"
+    final accessToken = data['token'] as String? ?? '';
+    // Refresh token: returned in JSON body after applying the backend patch
+    final refreshToken = data['refreshToken'] as String?;
+
+    print('🔐 accessToken present: ${accessToken.isNotEmpty}');
+    print('🔐 refreshToken present: ${refreshToken != null && refreshToken.isNotEmpty}');
+
+    if (accessToken.isNotEmpty) {
+      await SecureStorage.saveAccessToken(accessToken);
+    } else {
+      print('⚠️ No access token in response — check backend is returning "token" field');
+    }
+
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await SecureStorage.saveRefreshToken(refreshToken);
+    }
+
+    return UserModel.fromJson(data);
   }
 
   Future<void> logout() async {
@@ -68,7 +93,7 @@ class AuthRepository {
     try {
       final res = await _dio.get(ApiConstants.getLoginUser);
       final data = res.data['data'] ?? res.data;
-      return UserModel.fromJson(data['user'] ?? data);
+      return UserModel.fromJson(data);
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }

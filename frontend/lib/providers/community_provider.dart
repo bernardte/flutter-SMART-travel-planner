@@ -110,8 +110,8 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   }
 
   void _updateGuideInLists(
-      String id, TravelGuideModel Function(TravelGuideModel) updater) {
-    TravelGuideModel update(TravelGuideModel g) =>
+    String id, TravelGuideModel Function(TravelGuideModel) updater) {
+    TravelGuideModel update(TravelGuideModel g) =>  // remove the ? here
         g.id == id ? updater(g) : g;
 
     state = state.copyWith(

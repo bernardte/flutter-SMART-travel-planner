@@ -27,15 +27,23 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
   }
 
   Future<void> _fetchDestinations() async {
+    // Read the repo BEFORE the first await — reading ref after an await
+    // is unsafe if the widget has since been disposed.
+    final repo = ref.read(tripRepositoryProvider);
     try {
-      final repo = ref.read(tripRepositoryProvider);
       final data = await repo.getPopularDestinations();
+      // FIX: guard every setState that follows an await.
+      // If the user navigated away while the request was in-flight,
+      // mounted is false and setState would crash with
+      // "setState() called after dispose()".
+      if (!mounted) return;
       setState(() {
         _destinations =
             data.map((d) => PopularDestinationModel.fromJson(d)).toList();
         _loadingDestinations = false;
       });
     } catch (_) {
+      if (!mounted) return; // same guard on the error path
       setState(() => _loadingDestinations = false);
     }
   }

@@ -1,6 +1,4 @@
 // lib/core/network/dio_client.dart
-// Replaces frontend/src/lib/axios.ts
-// Handles: base URL, Bearer token injection, silent token refresh on 401.
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,9 +31,17 @@ class _AuthInterceptor extends QueuedInterceptor {
     RequestInterceptorHandler handler,
   ) async {
     final token = await SecureStorage.getAccessToken();
-    if (token != null) {
+
+    // Safe preview — clamp so we never exceed actual token length
+    final preview = (token != null && token.isNotEmpty)
+        ? token.substring(0, token.length.clamp(0, 20))
+        : 'null';
+    print('🔑 Access token: $preview...');
+
+    if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
+
     handler.next(options);
   }
 
@@ -47,23 +53,24 @@ class _AuthInterceptor extends QueuedInterceptor {
     final statusCode = err.response?.statusCode;
     final requestUrl = err.requestOptions.path;
 
-    // Skip refresh for auth endpoints
     final skipRefresh = requestUrl.contains('/users/login') ||
         requestUrl.contains('/users/register-account') ||
         requestUrl.contains('/refreshToken');
 
     if (statusCode == 401 && !skipRefresh) {
+      print('⚠️ 401 on $requestUrl — attempting silent token refresh');
       try {
         final refreshToken = await SecureStorage.getRefreshToken();
-        if (refreshToken == null) {
+        if (refreshToken == null || refreshToken.isEmpty) {
+          print('❌ No refresh token — session expired, user must log in');
           await SecureStorage.clearAll();
           return handler.next(err);
         }
 
-        // Call refresh endpoint
-        final refreshDio = Dio(
-          BaseOptions(baseUrl: ApiConstants.baseUrl),
-        );
+        // Use a clean Dio (no interceptors) to avoid infinite recursion.
+        // Send refresh token as Bearer header — works for both cookie-less
+        // mobile clients and the existing web flow.
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
         final res = await refreshDio.get(
           ApiConstants.refreshToken,
           options: Options(
@@ -71,18 +78,28 @@ class _AuthInterceptor extends QueuedInterceptor {
           ),
         );
 
-        final newAccessToken = res.data['data']['accessToken'] as String?;
-        if (newAccessToken == null) throw Exception('No access token in refresh response');
+        // Backend returns: { data: { accessToken, refreshToken } }
+        final body = res.data['data'] ?? res.data;
+        final newAccessToken = body['accessToken'] as String?;
+        final newRefreshToken = body['refreshToken'] as String?;
+
+        if (newAccessToken == null || newAccessToken.isEmpty) {
+          throw Exception('Refresh response missing accessToken');
+        }
 
         await SecureStorage.saveAccessToken(newAccessToken);
+        if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+          await SecureStorage.saveRefreshToken(newRefreshToken);
+        }
+        print('✅ Token refreshed — retrying original request');
 
-        // Retry original request with new token
         final retryOptions = err.requestOptions;
         retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
 
         final retryResponse = await _dio.fetch(retryOptions);
         return handler.resolve(retryResponse);
-      } catch (_) {
+      } catch (e) {
+        print('❌ Token refresh failed: $e — clearing session');
         await SecureStorage.clearAll();
         return handler.next(err);
       }

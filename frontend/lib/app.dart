@@ -161,7 +161,7 @@ class SmartTravelPlannerApp extends ConsumerWidget {
           elevation: 0,
           surfaceTintColor: Colors.transparent,
         ),
-        cardTheme: CardThemeData(
+          cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

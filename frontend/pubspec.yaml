@@ -16,6 +16,8 @@ dependencies:
   # Environment variables
   flutter_dotenv: ^5.1.0
 
+  shared_preferences: ^2.3.2
+
   # State management (replaces Zustand)
   flutter_riverpod: ^2.5.1
 
