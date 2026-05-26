@@ -45,8 +45,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.getLoginUser();
       state = AuthState(user: user);
-    } catch (_) {
-      await SecureStorage.clearAll();
+    } catch (e) {
+      final is401 = e.toString().contains('401') ||
+          e.toString().toLowerCase().contains('unauthorized');
+      if (is401) {
+        await SecureStorage.clearAll();
+      }
       state = const AuthState();
     }
   }
