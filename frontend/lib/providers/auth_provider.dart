@@ -32,8 +32,10 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repo;
 
-  AuthNotifier(this._repo) : super(const AuthState()) {
-    _tryRestoreSession();
+  AuthNotifier(this._repo) : super(const AuthState());
+
+  Future<void> init() async {
+    await _tryRestoreSession();
   }
 
   /// On app start, check if we have a stored access token and fetch current user
@@ -41,7 +43,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = await SecureStorage.getAccessToken();
     if (token == null) return;
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true);  
     try {
       final user = await _repo.getLoginUser();
       state = AuthState(user: user);

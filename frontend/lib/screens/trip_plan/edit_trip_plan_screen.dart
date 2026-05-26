@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../repositories/trip_plan_repository.dart';
+import '../../core/utils/snackbar.dart';
 
 class EditTripPlanScreen extends ConsumerStatefulWidget {
   final String tripPlanId;
@@ -62,14 +63,7 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
       });
     } catch (e) {
       setState(() => _loading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load guide: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackbar.error(context, 'Failed to load guide: $e');
     }
   }
 
@@ -101,20 +95,10 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
         thumbnailImage: _newThumbnail,
         onProgress: (p) => setState(() => _uploadProgress = p),
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Guide updated! ✅'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      AppSnackbar.success(context, 'Guide updated! ✅');
       if (mounted) context.go('/dashboard');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

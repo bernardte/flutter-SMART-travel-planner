@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
 import '../../providers/trip_provider.dart';
 import '../../models/trip_model.dart';
+import '../../core/utils/snackbar.dart';
 
 class PlanTripScreen extends ConsumerStatefulWidget {
   const PlanTripScreen({super.key});
@@ -160,29 +161,17 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
 
   Future<void> _save() async {
     if (_countryCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a destination'),
-        ),
-      );
+      AppSnackbar.show(context, 'Please enter a destination');
       return;
     }
     if (_startDate.isEmpty || _endDate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select travel dates'),
-        ),
-      );
+      AppSnackbar.show(context, 'Please select travel dates');
       return;
     }
     final totalLocs =
         _itinerary.fold(0, (s, d) => s + d.locations.length);
     if (totalLocs == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least one location'),
-        ),
-      );
+      AppSnackbar.show(context, 'Add at least one location');
       return;
     }
 
@@ -196,20 +185,10 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
     if (mounted) {
       setState(() => _isSaving = false);
       if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Trip saved! 🎉'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackbar.success(context, 'Trip saved! 🎉');
         context.go('/dashboard');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to save trip'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed to save trip');
       }
     }
   }

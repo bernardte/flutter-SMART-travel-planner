@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'app.dart';
+import 'package:frontend/app_bootstrap.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load();
-  } catch (_) {
-    // Allow app startup when .env is missing; API client fallbacks will be used.
-  }
   runApp(
     const ProviderScope(
-      child: SmartTravelPlannerApp(),
+      child: AppBootstrap(),
     ),
   );
 }

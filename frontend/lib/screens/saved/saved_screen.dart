@@ -8,6 +8,7 @@ import '../../repositories/favourite_repository.dart';
 import '../../providers/community_provider.dart';
 import '../../models/travel_guide_model.dart';
 import '../../widgets/card/guide_card.dart';
+import '../../core/utils/snackbar.dart';
 
 class SavedScreen extends ConsumerStatefulWidget {
   const SavedScreen({super.key});

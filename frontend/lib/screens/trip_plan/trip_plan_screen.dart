@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../repositories/trip_plan_repository.dart';
 import '../../repositories/community_repository.dart';
+import '../../core/utils/snackbar.dart';
 
 class TripPlanScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -79,11 +80,7 @@ class _TripPlanScreenState extends ConsumerState<TripPlanScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_thumbnail == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add a thumbnail image'),
-        ),
-      );
+      AppSnackbar.show(context, 'Please add a thumbnail image');
       return;
     }
     setState(() => _saving = true);
@@ -100,20 +97,10 @@ class _TripPlanScreenState extends ConsumerState<TripPlanScreen> {
         thumbnailImage: _thumbnail,
         onProgress: (p) => setState(() => _uploadProgress = p),
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Travel guide created! 🎉'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      AppSnackbar.success(context, 'Travel guide created! 🎉');
       if (mounted) context.go('/dashboard');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

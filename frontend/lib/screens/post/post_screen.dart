@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../repositories/community_repository.dart';
 import '../../repositories/user_repository.dart';
+import '../../core/utils/snackbar.dart';
 
 class PostScreen extends ConsumerStatefulWidget {
   const PostScreen({super.key});
@@ -79,11 +80,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedItineraryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an itinerary'),
-        ),
-      );
+      AppSnackbar.show(context, 'Please select an itinerary');
       return;
     }
     setState(() => _saving = true);
@@ -100,20 +97,10 @@ class _PostScreenState extends ConsumerState<PostScreen> {
         onProgress: (p) => setState(() => _uploadProgress = p),
       );
       ref.read(communityProvider.notifier).addPost(guide);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Post created! 🎉'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      AppSnackbar.success(context, 'Post created! 🎉');
       if (mounted) context.go('/dashboard');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

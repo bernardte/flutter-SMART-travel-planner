@@ -11,22 +11,27 @@ export interface DecodedToken extends JwtPayload {
 
 export const protectRoute = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies.accessToken;
-    console.log("Token from cookies: ", token);
+    // Accept token from either:
+    //   1. Authorization: Bearer <token>  ← Flutter mobile app sends this
+    //   2. Cookie: accessToken=<token>    ← Web browser sends this (unchanged)
+    let token: string | undefined = req.cookies.accessToken;
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7); // strip "Bearer " prefix
+    }
+
     if (!token) {
       throw new AppError(401, "Unauthorized");
     }
 
-    //! decoded jwt token
     const decoded = jwt.verify(token, env.JWT_ACCESS_TOKEN) as DecodedToken;
     if (!decoded?.userId) {
       throw new AppError(401, "Unauthorized");
     }
-    //! select all user attrbute exclude only password.
+
     const user = await User.findById(decoded.userId).select("-password");
-
     if (!user) throw new AppError(401, "User not found, authorization denied");
-
 
     req.user = user;
     next();
