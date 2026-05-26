@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/config/service_locator.dart';
-import 'package:frontend/core/config/token_service.dart';
+import 'package:frontend/core/storage/secure_storage.dart';
 import 'package:frontend/core/config/user_storage_service.dart';
 import 'package:frontend/data/repository/auth/login_repository.dart';
 import 'package:frontend/features/auth/bloc/login/login_event.dart';
@@ -30,7 +30,7 @@ class LoginBloc extends Bloc<LoginSubmittedEvent, LoginState> {
         final token = user?.token;
 
         if (token != null) {
-         await getIt<TokenStorageService>().saveToken(token);
+          await SecureStorage.saveAccessToken(token);
         }
 
         if (user != null) {

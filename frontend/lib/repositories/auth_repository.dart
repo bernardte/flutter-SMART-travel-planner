@@ -93,7 +93,8 @@ class AuthRepository {
     try {
       final res = await _dio.get(ApiConstants.getLoginUser);
       final data = res.data['data'] ?? res.data;
-      return UserModel.fromJson(data);
+      final userData = data['user'] ?? data;
+      return UserModel.fromJson(userData);
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
