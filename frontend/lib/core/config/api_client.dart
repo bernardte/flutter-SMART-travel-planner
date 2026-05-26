@@ -11,25 +11,33 @@ class ApiClient {
   static String get baseUrl => _getBaseUrl();
 
   static String _getBaseUrl() {
+    const fallbackUrl = "http://10.0.2.2:8000/api";
     if (kIsWeb) {
-      print("WEB URL: ${dotenv.get("DEV_BASE_URL")}");
-      return dotenv.get("DEV_BASE_URL");
+      final webUrl = dotenv.env["DEV_BASE_URL"] ?? fallbackUrl;
+      print("WEB URL: $webUrl");
+      return webUrl;
     }
 
     if (Platform.isAndroid) {
-      print("ANDROID URL: ${dotenv.get("ANDROID_BASE_URL")}");
-      return dotenv.get("ANDROID_BASE_URL");
+      final androidUrl = dotenv.env["ANDROID_BASE_URL"] ??
+          dotenv.env["DEV_BASE_URL"] ??
+          fallbackUrl;
+      print("ANDROID URL: $androidUrl");
+      return androidUrl;
     }
 
     if (Platform.isIOS) {
-      print("IOS URL: ${dotenv.get("IOS_BASE_URL")}");
-      return dotenv.get("IOS_BASE_URL", fallback: dotenv.get("DEV_BASE_URL"));
+      final iosUrl = dotenv.env["IOS_BASE_URL"] ??
+          dotenv.env["DEV_BASE_URL"] ??
+          fallbackUrl;
+      print("IOS URL: $iosUrl");
+      return iosUrl;
     }
 
-    return dotenv.get("DEV_BASE_URL");
+    return dotenv.env["DEV_BASE_URL"] ?? fallbackUrl;
   }
 
-  static final devBaseUrl = dotenv.get("DEV_BASE_URL");
+  static final devBaseUrl = baseUrl;
 
   static final Dio dio = Dio(
     BaseOptions(

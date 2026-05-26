@@ -5,7 +5,11 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
+  try {
+    await dotenv.load();
+  } catch (_) {
+    // Allow app startup when .env is missing; API client fallbacks will be used.
+  }
   runApp(
     const ProviderScope(
       child: SmartTravelPlannerApp(),

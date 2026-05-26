@@ -1,29 +1,21 @@
-import 'package:hive/hive.dart';
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:frontend/data/models/user/user_model.dart';
 
 class UserStorageService {
-  static const String _boxName = 'userBox';
-  static const String _userKey = 'currentUser';
+  final _storage = const FlutterSecureStorage();
+  static const _userKey = 'currentUser';
 
   Future<void> saveUser(UserModel user) async {
-    final box = await Hive.openBox(_boxName);
-
-    await box.put(_userKey, user.toJson());
+    final json = jsonEncode(user.toJson());
+    await _storage.write(key: _userKey, value: json);
   }
 
   Future<UserModel?> getUser() async {
-    final box = await Hive.openBox(_boxName);
-
-    final data = box.get(_userKey);
-
-    if (data == null) return null;
-
-    return UserModel.fromJson(Map<String, dynamic>.from(data));
+    final raw = await _storage.read(key: _userKey);
+    if (raw == null) return null;
+    return UserModel.fromJson(jsonDecode(raw));
   }
 
-  Future<void> clearUser() async {
-    final box = await Hive.openBox(_boxName);
-
-    await box.delete(_userKey);
-  }
+  Future<void> clearUser() async => _storage.delete(key: _userKey);
 }
