@@ -5,7 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/secure_storage.dart';
 import '../utils/api_constants.dart';
 
+// FIX: keepAlive: true ensures Riverpod NEVER disposes and recreates this
+// provider when the widget tree changes (e.g. after navigation).
+// Without this, navigating from login → dashboard caused a new Dio instance
+// to be created. That new instance immediately read the token from storage
+// before the async saveAccessToken() call had a chance to complete, resulting
+// in "Access token not found" on the very first request after login.
 final dioClientProvider = Provider<Dio>((ref) {
+  ref.keepAlive(); // <-- singleton: created once, lives for the app's lifetime
+
   final dio = Dio(
     BaseOptions(
       baseUrl: ApiConstants.baseUrl,

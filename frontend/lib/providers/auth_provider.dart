@@ -39,17 +39,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// On app start, check if we have a stored access token and fetch current user
   Future<void> _tryRestoreSession() async {
     final token = await SecureStorage.getAccessToken();
-    if (token == null) return;
+    if (token == null || token.isEmpty) return; // nothing stored, skip silently
 
     state = state.copyWith(isLoading: true);
     try {
       final user = await _repo.getLoginUser();
       state = AuthState(user: user);
     } catch (e) {
-      final is401 = e.toString().contains('401') ||
-          e.toString().toLowerCase().contains('unauthorized');
-      if (is401) {
+      // ONLY clear tokens on a confirmed 401 — not on network errors,
+      // timeouts, server errors, or any other transient failure.
+      // If the backend is temporarily unreachable, we must keep the token.
+      final msg = e.toString().toLowerCase();
+      final isDefinitelyUnauthorized =
+          msg.contains('401') || msg.contains('unauthorized');
+
+      if (isDefinitelyUnauthorized) {
+        print('🗑️ Session restore: confirmed 401 — clearing tokens');
         await SecureStorage.clearAll();
+      } else {
+        // Keep the token — the error is transient (network, server, etc.)
+        // The user will appear logged out on screen but the token survives.
+        print('⚠️ Session restore failed (non-401): $e — keeping token');
       }
       state = const AuthState();
     }

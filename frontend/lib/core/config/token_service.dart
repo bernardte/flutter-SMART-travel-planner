@@ -1,28 +1,23 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:frontend/core/storage/secure_storage.dart';
 
 class TokenStorageService {
-  final _storage = const FlutterSecureStorage();
-
-  static const _accessKey = 'accessToken';
-  static const _refreshKey = 'refreshToken';
+  // Delegates entirely to SecureStorage so both the BLoC system
+  // and the Riverpod system always use the same token.
 
   Future<void> saveTokens({
     required String accessToken,
     String? refreshToken,
   }) async {
-    await _storage.write(key: _accessKey, value: accessToken);
-    if (refreshToken != null) {
-      await _storage.write(key: _refreshKey, value: refreshToken);
+    await SecureStorage.saveAccessToken(accessToken);
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await SecureStorage.saveRefreshToken(refreshToken);
     }
   }
 
-  Future<String?> getToken() async => _storage.read(key: _accessKey);
-  Future<String?> getRefreshToken() async => _storage.read(key: _refreshKey);
+  Future<String?> getToken() => SecureStorage.getAccessToken();
+  Future<String?> getRefreshToken() => SecureStorage.getRefreshToken();
 
-  Future<void> clearTokens() async {
-    await _storage.delete(key: _accessKey);
-    await _storage.delete(key: _refreshKey);
-  }
+  Future<void> clearTokens() => SecureStorage.clearAll();
 
   // backwards compat
   Future<void> saveToken(String token) => saveTokens(accessToken: token);

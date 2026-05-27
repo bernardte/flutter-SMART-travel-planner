@@ -1,12 +1,8 @@
 // lib/screens/trip_plan/edit_trip_plan_screen.dart
-// Replaces edit travel guide page
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../repositories/trip_plan_repository.dart';
 import '../../core/utils/snackbar.dart';
 
@@ -21,17 +17,11 @@ class EditTripPlanScreen extends ConsumerStatefulWidget {
 class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _countryCtrl = TextEditingController();
-  final _tagCtrl = TextEditingController();
+  final _introCtrl = TextEditingController();
 
-  File? _newThumbnail;
-  String? _existingThumbnailUrl;
-  String _privacy = 'public';
-  List<String> _tags = [];
+  List<Map<String, dynamic>> _sections = [];
   bool _loading = true;
   bool _saving = false;
-  int _uploadProgress = 0;
 
   @override
   void initState() {
@@ -42,9 +32,7 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _descCtrl.dispose();
-    _countryCtrl.dispose();
-    _tagCtrl.dispose();
+    _introCtrl.dispose();
     super.dispose();
   }
 
@@ -52,30 +40,18 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
     try {
       final repo = ref.read(tripPlanRepositoryProvider);
       final data = await repo.getTripPlan(widget.tripPlanId);
+      final rawSections = data['sections'];
       setState(() {
         _titleCtrl.text = data['title'] ?? '';
-        _descCtrl.text = data['description'] ?? '';
-        _countryCtrl.text = data['country'] ?? '';
-        _privacy = data['privacy'] ?? 'public';
-        _existingThumbnailUrl = data['thumbnailImage'];
-        _tags = List<String>.from(data['tags'] ?? []);
+        _introCtrl.text = data['authorIntro'] ?? '';
+        _sections = (rawSections is List)
+            ? rawSections.whereType<Map<String, dynamic>>().toList()
+            : [];
         _loading = false;
       });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) AppSnackbar.error(context, 'Failed to load guide: $e');
-    }
-  }
-
-  Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) setState(() => _newThumbnail = File(picked.path));
-  }
-
-  void _addTag() {
-    final tag = _tagCtrl.text.trim().replaceAll('#', '');
-    if (tag.isNotEmpty && !_tags.contains(tag)) {
-      setState(() { _tags.add(tag); _tagCtrl.clear(); });
     }
   }
 
@@ -87,18 +63,13 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
       await repo.updateTripPlan(
         tripPlanId: widget.tripPlanId,
         title: _titleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        country: _countryCtrl.text.trim(),
-        privacy: _privacy,
-        tags: _tags,
-        sections: [],
-        thumbnailImage: _newThumbnail,
-        onProgress: (p) => setState(() => _uploadProgress = p),
+        authorIntro: _introCtrl.text.trim(),
+        sections: _sections,
       );
       AppSnackbar.success(context, 'Guide updated! ✅');
       if (mounted) context.go('/dashboard');
     } catch (e) {
-      AppSnackbar.error(context, 'Failed: $e');
+      if (mounted) AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -106,12 +77,15 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Travel Guide'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
       ),
       body: Form(
         key: _formKey,
@@ -120,111 +94,75 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Stack(fit: StackFit.expand, children: [
-                      if (_newThumbnail != null)
-                        Image.file(_newThumbnail!, fit: BoxFit.cover)
-                      else if (_existingThumbnailUrl != null)
-                        CachedNetworkImage(imageUrl: _existingThumbnailUrl!, fit: BoxFit.cover)
-                      else
-                        Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey[400]),
-                          Text('Tap to add thumbnail', style: TextStyle(color: Colors.grey[500])),
-                        ]),
-                      Positioned(
-                        bottom: 8, right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                          child: const Text('Change photo', style: TextStyle(color: Colors.white, fontSize: 11)),
-                        ),
-                      ),
-                    ]),
-                  ),
+              // Info banner — explain what can be edited here
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber[200]!),
                 ),
+                child: Row(children: [
+                  Icon(Icons.info_outline, color: Colors.amber[700], size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You can edit the title, your intro, and section notes here.',
+                      style: TextStyle(fontSize: 12, color: Colors.amber[800]),
+                    ),
+                  ),
+                ]),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Guide Title', prefixIcon: Icon(Icons.title)),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Guide Title',
+                    prefixIcon: Icon(Icons.title)),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+
               TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description', prefixIcon: Icon(Icons.description_outlined)),
-                maxLines: 3,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                controller: _introCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Your intro / bio',
+                    prefixIcon: Icon(Icons.person_outline),
+                    hintText: 'e.g. Travel blogger, visited 30+ countries'),
+                maxLines: 2,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _countryCtrl,
-                decoration: const InputDecoration(labelText: 'Country', prefixIcon: Icon(Icons.public)),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              const Text('Privacy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'public', label: Text('Public'), icon: Icon(Icons.public, size: 16)),
-                  ButtonSegment(value: 'private', label: Text('Private'), icon: Icon(Icons.lock_outline, size: 16)),
-                ],
-                selected: {_privacy},
-                onSelectionChanged: (s) => setState(() => _privacy = s.first),
-              ),
-              const SizedBox(height: 16),
-              const Text('Tags', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _tagCtrl,
-                    decoration: const InputDecoration(hintText: 'Add a tag...', prefixIcon: Icon(Icons.tag, size: 18), isDense: true),
-                    onSubmitted: (_) => _addTag(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(onPressed: _addTag, icon: const Icon(Icons.add_circle_outline), color: Colors.blue),
-              ]),
-              if (_tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  children: _tags.map((tag) => Chip(
-                    label: Text('#$tag', style: const TextStyle(fontSize: 12)),
-                    deleteIcon: const Icon(Icons.close, size: 14),
-                    onDeleted: () => setState(() => _tags.remove(tag)),
-                    backgroundColor: Colors.blue[50],
-                    labelStyle: TextStyle(color: Colors.blue[700]),
-                  )).toList(),
-                ),
-              ],
               const SizedBox(height: 24),
-              if (_saving && _uploadProgress > 0) ...[
-                Text('Uploading: $_uploadProgress%'),
+
+              // Sections preview — show what sections exist
+              if (_sections.isNotEmpty) ...[
+                const Text('Sections',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
-                LinearProgressIndicator(value: _uploadProgress / 100),
-                const SizedBox(height: 16),
+                ..._sections.asMap().entries.map((e) =>
+                    _SectionNoteEditor(
+                      index: e.key,
+                      section: e.value,
+                      onNotesChanged: (notes) {
+                        setState(() => _sections[e.key]['notes'] = notes);
+                      },
+                    )),
               ],
+
+              const SizedBox(height: 28),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _saving ? null : _submit,
                   icon: _saving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.save_outlined),
                   label: Text(_saving ? 'Saving...' : 'Save Changes'),
                 ),
@@ -234,6 +172,99 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Lets the user edit the notes field of a day section inline.
+class _SectionNoteEditor extends StatefulWidget {
+  final int index;
+  final Map<String, dynamic> section;
+  final ValueChanged<String> onNotesChanged;
+
+  const _SectionNoteEditor({
+    required this.index,
+    required this.section,
+    required this.onNotesChanged,
+  });
+
+  @override
+  State<_SectionNoteEditor> createState() => _SectionNoteEditorState();
+}
+
+class _SectionNoteEditorState extends State<_SectionNoteEditor> {
+  late final TextEditingController _ctrl;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(
+        text: widget.section['notes'] as String? ?? '');
+    _ctrl.addListener(() => widget.onNotesChanged(_ctrl.text));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final type = widget.section['type'] as String? ?? 'day';
+    final title =
+        widget.section['title'] as String? ?? 'Section ${widget.index + 1}';
+    final isTips = type == 'tips';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: Column(children: [
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(children: [
+              Icon(
+                isTips ? Icons.lightbulb_outline : Icons.map_outlined,
+                size: 18,
+                color: isTips ? Colors.amber[600] : Colors.blue[600],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w500, fontSize: 14))),
+              Icon(
+                _expanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+                color: Colors.grey[400],
+              ),
+            ]),
+          ),
+        ),
+        if (_expanded && !isTips)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: TextField(
+              controller: _ctrl,
+              decoration: const InputDecoration(
+                labelText: 'Notes for this day',
+                hintText: 'Any tips or notes for travellers...',
+                isDense: true,
+              ),
+              maxLines: 3,
+            ),
+          ),
+      ]),
     );
   }
 }

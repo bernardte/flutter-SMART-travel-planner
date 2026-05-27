@@ -34,6 +34,11 @@ class LoginBloc extends Bloc<LoginSubmittedEvent, LoginState> {
           await SecureStorage.saveAccessToken(token);
         }
 
+        final refreshToken = user?.refreshToken;
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await SecureStorage.saveRefreshToken(refreshToken);
+        }
+
         if (user != null) {
           await getIt<UserStorageService>().saveUser(user);
           emit(LoginSuccess(user: user, message: response.message));

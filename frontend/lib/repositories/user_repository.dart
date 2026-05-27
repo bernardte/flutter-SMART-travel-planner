@@ -81,5 +81,6 @@ class UserRepository {
 }
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
+  ref.keepAlive();
   return UserRepository(ref.read(dioClientProvider));
 });

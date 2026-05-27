@@ -158,5 +158,6 @@ class CommunityRepository {
 }
 
 final communityRepositoryProvider = Provider<CommunityRepository>((ref) {
+  ref.keepAlive();
   return CommunityRepository(ref.read(dioClientProvider));
 });

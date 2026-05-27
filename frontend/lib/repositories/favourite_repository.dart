@@ -24,5 +24,6 @@ class FavouriteRepository {
 }
 
 final favouriteRepositoryProvider = Provider<FavouriteRepository>((ref) {
+  ref.keepAlive();
   return FavouriteRepository(ref.read(dioClientProvider));
 });

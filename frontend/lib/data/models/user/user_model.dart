@@ -5,6 +5,7 @@ class UserModel {
   final String email;
   final String profilePicture;
   final String token;
+   final String? refreshToken;
 
   UserModel({
     required this.id,
@@ -13,6 +14,7 @@ class UserModel {
     required this.email,
     required this.profilePicture,
     required this.token,
+    this.refreshToken,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class UserModel {
       email: json["email"],
       profilePicture: json["profilePicture"] ?? "",
       token: json["token"] ?? "",
+      refreshToken: json["refreshToken"],
     );
   }
 

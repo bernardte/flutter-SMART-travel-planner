@@ -86,6 +86,13 @@ class TripRepository {
   }
 }
 
+// FIX: keepAlive: true — ensures the TripRepository (and the Dio it holds)
+// is never recreated mid-session. Without this, navigating away from
+// plan_trip_screen could cause a fresh TripRepository to be built, which
+// reads dioClientProvider again — and if that was also being recreated, the
+// new Dio's onRequest interceptor would race against the token write,
+// producing "Access token not found" on /trips/save.
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
+  ref.keepAlive();
   return TripRepository(ref.read(dioClientProvider));
 });

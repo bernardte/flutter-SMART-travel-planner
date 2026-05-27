@@ -1,13 +1,11 @@
 // lib/screens/trip_plan/trip_plan_screen.dart
-// Replaces frontend/src/pages/TripPlan/TripPlanPage.tsx (create mode)
+// Create a travel guide from an existing trip's itinerary.
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../repositories/trip_plan_repository.dart';
-import '../../repositories/community_repository.dart';
+import '../../repositories/trip_repository.dart';
 import '../../core/utils/snackbar.dart';
 
 class TripPlanScreen extends ConsumerStatefulWidget {
@@ -21,86 +19,94 @@ class TripPlanScreen extends ConsumerStatefulWidget {
 class _TripPlanScreenState extends ConsumerState<TripPlanScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _countryCtrl = TextEditingController();
-  final _tagCtrl = TextEditingController();
+  final _introCtrl = TextEditingController();
 
-  File? _thumbnail;
-  String _privacy = 'public';
-  List<String> _tags = [];
-  List<Map<String, dynamic>> _itineraries = [];
+  Map<String, dynamic>? _trip;
+  bool _loading = true;
   bool _saving = false;
-  bool _loadingItineraries = true;
-  int _uploadProgress = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadItineraries();
+    _loadTrip();
   }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _descCtrl.dispose();
-    _countryCtrl.dispose();
-    _tagCtrl.dispose();
+    _introCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadItineraries() async {
+  Future<void> _loadTrip() async {
     try {
-      final repo = ref.read(communityRepositoryProvider);
-      final data = await repo.getItinerariesByAuthor(widget.tripId);
+      final repo = ref.read(tripRepositoryProvider);
+      final trip = await repo.getTripById(widget.tripId);
       setState(() {
-        _itineraries = data.cast<Map<String, dynamic>>();
-        _loadingItineraries = false;
+        // Convert TripModel to map for display
+        _trip = {
+          'country': trip.country,
+          'startDate': trip.startDate,
+          'endDate': trip.endDate,
+          'days': trip.days.map((d) => d.toJson()).toList(),
+        };
+        _loading = false;
       });
-    } catch (_) {
-      setState(() => _loadingItineraries = false);
-    }
-  }
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) setState(() => _thumbnail = File(picked.path));
-  }
-
-  void _addTag() {
-    final tag = _tagCtrl.text.trim().replaceAll('#', '');
-    if (tag.isNotEmpty && !_tags.contains(tag)) {
-      setState(() {
-        _tags.add(tag);
-        _tagCtrl.clear();
-      });
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) AppSnackbar.error(context, 'Failed to load trip: $e');
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_thumbnail == null) {
-      AppSnackbar.show(context, 'Please add a thumbnail image');
-      return;
-    }
+    if (_trip == null) return;
     setState(() => _saving = true);
     try {
       final repo = ref.read(tripPlanRepositoryProvider);
+
+      // Build sections from the trip days
+      final days = (_trip!['days'] as List? ?? []);
+      final sections = <Map<String, dynamic>>[];
+
+      // Add a general tips section first
+      sections.add({
+        'id': 'tips',
+        'type': 'tips',
+        'title': 'General Tips',
+        'content': '',
+        'route': [],
+        'places': [],
+        'listItems': [],
+        'isOpen': true,
+      });
+
+      // Add one section per day
+      for (int i = 0; i < days.length; i++) {
+        final day = days[i] as Map<String, dynamic>;
+        sections.add({
+          'id': 'day${i + 1}',
+          'type': 'day',
+          'title': day['title'] ?? 'Day ${i + 1}',
+          'route': day['activities'] ?? [],
+          'places': day['places'] ?? [],
+          'listItems': [],
+          'notes': day['notes'] ?? '',
+          'isOpen': true,
+        });
+      }
+
       await repo.createTripPlan(
         tripId: widget.tripId,
         title: _titleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        country: _countryCtrl.text.trim(),
-        privacy: _privacy,
-        tags: _tags,
-        sections: _itineraries,
-        thumbnailImage: _thumbnail,
-        onProgress: (p) => setState(() => _uploadProgress = p),
+        authorIntro: _introCtrl.text.trim(),
+        sections: sections,
       );
+
       AppSnackbar.success(context, 'Travel guide created! 🎉');
       if (mounted) context.go('/dashboard');
     } catch (e) {
-      AppSnackbar.error(context, 'Failed: $e');
+      if (mounted) AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -108,10 +114,17 @@ class _TripPlanScreenState extends ConsumerState<TripPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final days = (_trip?['days'] as List? ?? []);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Travel Guide'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
       ),
       body: Form(
         key: _formKey,
@@ -120,114 +133,88 @@ class _TripPlanScreenState extends ConsumerState<TripPlanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail picker
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 180,
-                  width: double.infinity,
+              // Trip summary card
+              if (_trip != null)
+                Container(
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[300]!),
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: _thumbnail != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child: Image.file(_thumbnail!, fit: BoxFit.cover),
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(children: [
+                    Icon(Icons.map_outlined, color: Colors.blue[600]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey[400]),
-                            const SizedBox(height: 8),
-                            Text('Tap to add thumbnail', style: TextStyle(color: Colors.grey[500])),
-                          ],
-                        ),
+                        Text(_trip!['country'] ?? '',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text(
+                            '${days.length} day${days.length == 1 ? '' : 's'} · ${_trip!['startDate'] ?? ''} – ${_trip!['endDate'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.blue[700])),
+                      ]),
+                    ),
+                  ]),
                 ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Guide Title', prefixIcon: Icon(Icons.title)),
-                validator: (v) => v == null || v.isEmpty ? 'Title is required' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Guide Title',
+                    prefixIcon: Icon(Icons.title),
+                    hintText: 'e.g. My 7 Days in Japan'),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Title is required' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
               TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description', prefixIcon: Icon(Icons.description_outlined)),
-                maxLines: 3,
-                validator: (v) => v == null || v.isEmpty ? 'Description is required' : null,
+                controller: _introCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Your intro / bio',
+                    prefixIcon: Icon(Icons.person_outline),
+                    hintText: 'e.g. Travel blogger, visited 30+ countries'),
+                maxLines: 2,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
 
-              TextFormField(
-                controller: _countryCtrl,
-                decoration: const InputDecoration(labelText: 'Country', prefixIcon: Icon(Icons.public)),
-                validator: (v) => v == null || v.isEmpty ? 'Country is required' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Privacy selector
-              const Text('Privacy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'public', label: Text('Public'), icon: Icon(Icons.public, size: 16)),
-                  ButtonSegment(value: 'private', label: Text('Private'), icon: Icon(Icons.lock_outline, size: 16)),
-                ],
-                selected: {_privacy},
-                onSelectionChanged: (s) => setState(() => _privacy = s.first),
-              ),
-              const SizedBox(height: 16),
-
-              // Tags
-              const Text('Tags', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _tagCtrl,
-                    decoration: const InputDecoration(hintText: 'Add a tag...', prefixIcon: Icon(Icons.tag, size: 18), isDense: true),
-                    onSubmitted: (_) => _addTag(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(onPressed: _addTag, icon: const Icon(Icons.add_circle_outline), color: Colors.blue),
-              ]),
-              if (_tags.isNotEmpty) ...[
+              // Preview sections that will be created
+              if (days.isNotEmpty) ...[
+                const Text('Sections that will be created',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  children: _tags.map((tag) => Chip(
-                    label: Text('#$tag', style: const TextStyle(fontSize: 12)),
-                    deleteIcon: const Icon(Icons.close, size: 14),
-                    onDeleted: () => setState(() => _tags.remove(tag)),
-                    backgroundColor: Colors.blue[50],
-                    labelStyle: TextStyle(color: Colors.blue[700]),
-                  )).toList(),
-                ),
-              ],
-              const SizedBox(height: 24),
-
-              // Upload progress
-              if (_saving && _uploadProgress > 0) ...[
-                Text('Uploading: $_uploadProgress%'),
+                _SectionPreviewChip(label: '💡 General Tips'),
+                ...List.generate(
+                    days.length,
+                    (i) => _SectionPreviewChip(
+                        label:
+                            '📅 ${(days[i] as Map)['title'] ?? 'Day ${i + 1}'}')),
                 const SizedBox(height: 8),
-                LinearProgressIndicator(value: _uploadProgress / 100),
-                const SizedBox(height: 16),
+                Text(
+                    'You can edit these sections after creating the guide.',
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey[500])),
               ],
+
+              const SizedBox(height: 28),
 
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _saving ? null : _submit,
                   icon: _saving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.publish),
-                  label: Text(_saving ? 'Publishing...' : 'Publish Travel Guide'),
+                  label: Text(_saving ? 'Creating...' : 'Create Travel Guide'),
                 ),
               ),
               const SizedBox(height: 40),
@@ -237,4 +224,27 @@ class _TripPlanScreenState extends ConsumerState<TripPlanScreen> {
       ),
     );
   }
+}
+
+class _SectionPreviewChip extends StatelessWidget {
+  final String label;
+  const _SectionPreviewChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(children: [
+          const Icon(Icons.drag_handle, size: 16, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text(label,
+              style: const TextStyle(fontSize: 13)),
+        ]),
+      );
 }

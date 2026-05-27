@@ -16,13 +16,25 @@
 // On a broken emulator, SharedPreferences saves the day.
 // SharedPreferences is NOT encrypted, so this is only acceptable for
 // development/testing. In production with a real device, Keystore is used.
+//
+// FIX: encryptedSharedPreferences: true is intentionally DISABLED.
+// The EncryptedSharedPreferences backend has a known Android bug where the
+// first write on a fresh install (or after app data clear) silently fails
+// — the write returns success but the value is never persisted. This caused
+// refreshToken (and sometimes accessToken) to vanish immediately after login.
+// Without this flag, flutter_secure_storage falls back to standard
+// EncryptedFile-based storage, which does not have this bug.
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SecureStorage {
+  // IMPORTANT: encryptedSharedPreferences is intentionally NOT set (defaults
+  // to false). See header comment above for why.
   static const _secure = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: false, // avoid silent-write bug
+    ),
   );
 
   // SharedPreferences keys — prefixed so they're easy to identify
