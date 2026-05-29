@@ -9,6 +9,7 @@ import '../screens/post/post_screen.dart';
 import '../screens/saved/saved_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/not_found/not_found_screen.dart';
+import '../screens/splash/splash_screen.dart';
 import '../screens/trip/plan_trip_screen.dart';
 import '../screens/trip/view_trip_screen.dart';
 import '../screens/trip/edit_trip_screen.dart';
@@ -18,9 +19,8 @@ import '../screens/trip_plan/view_trip_plan_screen.dart';
 import '../widgets/common/main_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/splash',
   redirect: (context, state) {
-    // ⚠️ 这里先不放 Riverpod auth（避免 rebuild router）
     return null;
   },
   routes: [
@@ -70,6 +70,10 @@ final GoRouter appRouter = GoRouter(
           },
         ),
       ],
+    ),
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
     ),
     GoRoute(
       path: '/auth',

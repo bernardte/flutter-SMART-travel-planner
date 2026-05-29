@@ -724,6 +724,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                         const EdgeInsets.fromLTRB(24, 16, 24, 0),
                     child: Column(
                       children: [
+                        // draggable primitive 
                         Center(
                           child: Container(
                             width: 40,
