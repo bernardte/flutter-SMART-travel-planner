@@ -63,11 +63,17 @@ const registerAccount = async (
     throw new AppError(500, "Failed to create user.");
   }
 
+  const { accessToken: regAccessToken, refreshToken: regRefreshToken } = generateTokensAndSetCookies(newUser._id, res);
   successApiResponse(res, 201, "Account registered successfully", {
     _id: newUser._id,
     name: newUser.name,
     username: newUser.username,
     email: newUser.email,
+    profilePicture: "",
+    followers: [],
+    following: [],
+    token: regAccessToken,
+    refreshToken: regRefreshToken,  // Flutter mobile reads this
   });
 };
 
@@ -76,7 +82,6 @@ const loginAccount = async (
   res: Response,
 ) => {
   const { email, password } = req.body;
-  console.log("login: ", req.body);
 
   if (!email?.trim() || !password?.trim()) {
     throw new AppError(400, "Email and password are required.");
@@ -96,7 +101,7 @@ const loginAccount = async (
     throw new AppError(401, "Invalid email or password.");
   }
 
-  const { accessToken } = generateTokensAndSetCookies(user._id, res);
+  const { accessToken, refreshToken } = generateTokensAndSetCookies(user._id, res);
   successApiResponse(res, 200, "Login successful", {
     _id: user._id,
     username: user.username,
@@ -106,6 +111,7 @@ const loginAccount = async (
     following: user.following,
     email: user.email,
     token: accessToken,
+    refreshToken,  // Flutter mobile reads this; web uses the cookie
   });
 };
 
@@ -134,7 +140,6 @@ const logoutAccount = async (
 
 const getLoginUser = async (req: Request, res: Response) => {
   const userId = req.user?._id;
-  console.log("get login user: ", userId);
 
   const user = await User.findById({ _id: userId }).select("-password");
 

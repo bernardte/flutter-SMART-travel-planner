@@ -40,6 +40,121 @@ class AppLoading {
   }
 }
 
+/// Public reusable travel-themed orbit loading animation (rotating send icon + orbiting dots).
+class AppOrbitLoader extends StatefulWidget {
+  final Color color;
+  final double iconSize;
+  final double size;
+
+  const AppOrbitLoader({
+    super.key,
+    this.color = const Color(0xFF4A90E2),
+    this.iconSize = 52,
+    this.size = 88,
+  });
+
+  @override
+  State<AppOrbitLoader> createState() => _AppOrbitLoaderState();
+}
+
+class _AppOrbitLoaderState extends State<AppOrbitLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  List<Widget> _buildOrbitDots() {
+    const dotCount = 4;
+    const radius = 42.0;
+    const half = 44.0;
+    final dots = <Widget>[];
+
+    for (int i = 0; i < dotCount; i++) {
+      final angle = (i * 90.0) * pi / 180;
+      final animation = Tween<double>(begin: angle, end: angle + 2 * pi)
+          .animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+
+      dots.add(
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final dx = radius * cos(animation.value);
+            final dy = radius * sin(animation.value);
+            return Positioned(
+              left: half + dx - 4,
+              top: half + dy - 4,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.color.withValues(alpha: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.color.withValues(alpha: 0.3),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+    return dots;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: widget.size,
+            height: widget.size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  widget.color.withValues(alpha: 0.08),
+                  Colors.transparent,
+                ],
+                radius: 0.8,
+              ),
+            ),
+          ),
+          RotationTransition(
+            turns: _controller,
+            child: Icon(
+              Icons.send_rounded,
+              size: widget.iconSize,
+              color: widget.color,
+            ),
+          ),
+          ..._buildOrbitDots(),
+        ],
+      ),
+    );
+  }
+}
+
 /// 加载动画组件（带旅行元素）
 class _LoadingWidget extends StatefulWidget {
   final String message;
@@ -54,22 +169,14 @@ class _LoadingWidget extends StatefulWidget {
 class _LoadingWidgetState extends State<_LoadingWidget>
     with SingleTickerProviderStateMixin {
   late final AnimationController _rotationController;
-  late final Animation<double> _rotationAnimation;
 
   @override
   void initState() {
     super.initState();
-    // 旋转动画：每圈持续1.2秒，无限循环
     _rotationController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     )..repeat();
-
-    // 添加曲线效果，使旋转更自然
-    _rotationAnimation = CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.linear,
-    );
   }
 
   @override
@@ -129,38 +236,7 @@ class _LoadingWidgetState extends State<_LoadingWidget>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 旅行主题动画：旋转的纸飞机 + 装饰小点
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // 外圈光晕效果
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              const Color(0xFF4A90E2).withValues(alpha: 0.08),
-                              Colors.transparent,
-                            ],
-                            radius: 0.8,
-                          ),
-                        ),
-                      ),
-                      // 旋转的纸飞机图标
-                      RotationTransition(
-                        turns: _rotationAnimation,
-                        child: const Icon(
-                          Icons.send_rounded,
-                          size: 52,
-                          color: Color(0xFF4A90E2),
-                        ),
-                      ),
-                      // 装饰性小圆点（围绕飞机旋转）
-                      ..._buildOrbitDots(),
-                    ],
-                  ),
+                  const AppOrbitLoader(),
                   const SizedBox(height: 24),
                   // 加载提示文字
                   Text(
@@ -183,51 +259,6 @@ class _LoadingWidgetState extends State<_LoadingWidget>
         ],
       ),
     );
-  }
-
-  /// 围绕飞机的装饰性轨道小点（增强旅行感）
-  List<Widget> _buildOrbitDots() {
-    const dotCount = 4;
-    const radius = 42.0;
-    final dots = <Widget>[];
-
-    for (int i = 0; i < dotCount; i++) {
-      final angle = (i * 90.0) * pi / 180; // 初始角度
-      final animation = Tween<double>(begin: angle, end: angle + 2 * pi)
-          .animate(
-            CurvedAnimation(parent: _rotationController, curve: Curves.linear),
-          );
-
-      dots.add(
-        AnimatedBuilder(
-          animation: _rotationController,
-          builder: (context, child) {
-            final currentAngle = animation.value;
-            final dx = radius * cos(currentAngle);
-            final dy = radius * sin(currentAngle);
-            return Positioned(
-              left: 44 + dx - 4,
-              top: 44 + dy - 4,
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF4A90E2).withValues(alpha: 0.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF4A90E2).withValues(alpha: 0.3),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-    return dots;
   }
 
   /// 点状加载动画（三个跳动的点）

@@ -178,15 +178,12 @@ const getAllPublicPost = async (req: Request, res: Response) => {
   //! normalize data
   const normalized = allPublicPost.map((post) => {
     const obj = post.toObject();
-    const isLiked = userId
-      ? obj.likes?.some((id: any) => id.toString() === userId.toString())
-      : false;
+   const isLiked =
+     !!userId && obj.likes?.some((id) => String(id) === String(userId));
 
-    const isSaved = userId
-      ? obj.postSavedByUser?.some(
-          (id: any) => id.toString() === userId.toString(),
-        )
-      : false;
+   const isSaved =
+     !!userId &&
+     obj.postSavedByUser?.some((id) => String(id) === String(userId));
 
     return {
       ...obj,
@@ -217,6 +214,8 @@ const getAllPublicPost = async (req: Request, res: Response) => {
         : null,
     };
   });
+
+  console.log("normalized: ", normalized);
 
   successApiResponse(res, 200, "", normalized);
 };
@@ -333,10 +332,7 @@ const savedPost = async (req: Request, res: Response) => {
   );
 };
 
-const getPersonalizedRecommendation = async (
-  req: Request,
-  res: Response,
-) => {
+const getPersonalizedRecommendation = async (req: Request, res: Response) => {
   const userId = req.user?._id;
 
   if (!userId) throw new AppError(401, "Unauthorized");
