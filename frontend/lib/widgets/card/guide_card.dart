@@ -1,6 +1,4 @@
 // lib/widgets/card/guide_card.dart
-// Enhanced travel guide card with large tappable like & save buttons.
-// Uses minimum 48x48 touch targets, red for liked, blue for saved.
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -19,11 +17,18 @@ class GuideCard extends StatelessWidget {
   final bool showActions;
   final bool isOwner;
 
+  // Follow/unfollow
+  final bool isFollowing;
+  final bool isFollowLoading;
+  // null → hide button (owner / no author)
+  // non-null → show button, calls this on tap
+  final VoidCallback? onFollowToggle;
+
   const GuideCard({
     super.key,
     required this.guide,
     required this.likedCount,
-    required this.isLiked ,
+    required this.isLiked,
     required this.isSaved,
     this.onTap,
     this.onLike,
@@ -32,22 +37,23 @@ class GuideCard extends StatelessWidget {
     this.onEdit,
     this.showActions = true,
     this.isOwner = false,
+    this.isFollowing = false,
+    this.isFollowLoading = false,
+    this.onFollowToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail
+            // ── Thumbnail ────────────────────────────────────────────
             AspectRatio(
               aspectRatio: 16 / 9,
               child: guide.thumbnailImage.isNotEmpty
@@ -63,16 +69,15 @@ class GuideCard extends StatelessWidget {
                       errorWidget: (_, __, ___) => Container(
                         color: Colors.grey[100],
                         child: const Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey,
-                        ),
+                            Icons.image_not_supported,
+                            color: Colors.grey),
                       ),
                     )
                   : Container(
                       color: Colors.blue[50],
-                      child: const Icon(
-                        Icons.travel_explore,
-                        color: Colors.blue,
+                      child: const Center(
+                        child: Icon(Icons.travel_explore,
+                            color: Colors.blue, size: 40),
                       ),
                     ),
             ),
@@ -82,14 +87,13 @@ class GuideCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Country + author
+                  // ── Country + author + follow button ─────────────
                   Row(
                     children: [
+                      // Country badge
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.blue[50],
                           borderRadius: BorderRadius.circular(20),
@@ -104,20 +108,28 @@ class GuideCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      if (guide.author != null)
+                      if (guide.author != null) ...[
                         Text(
                           '@${guide.author!.username}',
                           style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
+                              fontSize: 11, color: Colors.grey[600]),
                         ),
+                        // Follow button — only shown to non-owners
+                        if (onFollowToggle != null) ...[
+                          const SizedBox(width: 8),
+                          _FollowButton(
+                            isFollowing: isFollowing,
+                            isLoading: isFollowLoading,
+                            onTap: onFollowToggle!,
+                          ),
+                        ],
+                      ],
                     ],
                   ),
 
                   const SizedBox(height: 8),
 
-                  // Title
+                  // ── Title ────────────────────────────────────────
                   Text(
                     guide.title,
                     style: const TextStyle(
@@ -131,18 +143,15 @@ class GuideCard extends StatelessWidget {
 
                   const SizedBox(height: 6),
 
-                  // Description
+                  // ── Description ──────────────────────────────────
                   Text(
                     guide.description,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
 
-                  // Tags
+                  // ── Tags ─────────────────────────────────────────
                   if (guide.tags.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Wrap(
@@ -151,9 +160,7 @@ class GuideCard extends StatelessWidget {
                       children: guide.tags.take(3).map((tag) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.blue[50],
                             borderRadius: BorderRadius.circular(16),
@@ -171,7 +178,7 @@ class GuideCard extends StatelessWidget {
                     ),
                   ],
 
-                  // Action buttons
+                  // ── Action buttons ───────────────────────────────
                   if (showActions) ...[
                     const SizedBox(height: 12),
                     const Divider(height: 1, thickness: 0.5),
@@ -179,31 +186,34 @@ class GuideCard extends StatelessWidget {
                     Row(
                       children: [
                         _ActionButton(
-                          icon:
-                              isLiked ? Icons.favorite : Icons.favorite_border,
+                          icon: isLiked
+                              ? Icons.favorite
+                              : Icons.favorite_border,
                           color: isLiked ? Colors.red : Colors.grey,
                           label: likedCount.toString(),
                           onTap: onLike,
                         ),
                         const SizedBox(width: 16),
                         _ActionButton(
-                          icon:
-                              isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          color:
-                              isSaved ? const Color(0xFF3B82F6) : Colors.grey,
+                          icon: isSaved
+                              ? Icons.bookmark
+                              : Icons.bookmark_border,
+                          color: isSaved
+                              ? const Color(0xFF3B82F6)
+                              : Colors.grey,
                           label: 'Save',
                           onTap: onSave,
                         ),
                         const Spacer(),
                         if (isOwner && onEdit != null)
-                          _IconButton(
+                          _IconBtn(
                             icon: Icons.edit_outlined,
                             color: Colors.blue,
                             onTap: onEdit!,
                           ),
                         if (isOwner && onDelete != null) ...[
-                          const SizedBox(width: 12),
-                          _IconButton(
+                          const SizedBox(width: 8),
+                          _IconBtn(
                             icon: Icons.delete_outline,
                             color: Colors.red,
                             onTap: onDelete!,
@@ -220,10 +230,68 @@ class GuideCard extends StatelessWidget {
       ),
     );
   }
- 
 }
 
-// Action button with minimum 48x48 tappable area
+// ── Follow button ─────────────────────────────────────────────────────────────
+class _FollowButton extends StatelessWidget {
+  final bool isFollowing;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _FollowButton({
+    required this.isFollowing,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 15, vertical: 7),
+        decoration: BoxDecoration(
+          color: isFollowing
+              ? Colors.grey[100]
+              : const Color(0xFF3B82F6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isFollowing
+                ? Colors.grey[300]!
+                : const Color(0xFF3B82F6),
+            width: 1,
+          ),
+        ),
+        child: isLoading
+            ? SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: isFollowing
+                      ? Colors.grey[500]
+                      : Colors.white,
+                ),
+              )
+            : Text(
+                isFollowing ? 'Following' : 'Follow',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isFollowing
+                      ? Colors.grey[600]
+                      : Colors.white,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+// ── Action button (like / save) ───────────────────────────────────────────────
+
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -245,16 +313,15 @@ class _ActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(30),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 20, color: color),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(fontSize: 14, color: color),
-              ),
+              Text(label,
+                  style: TextStyle(fontSize: 14, color: color)),
             ],
           ),
         ),
@@ -263,13 +330,14 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// Icon button with large touch area for edit/delete
-class _IconButton extends StatelessWidget {
+// ── Icon-only button (edit / delete) ─────────────────────────────────────────
+
+class _IconBtn extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _IconButton({
+  const _IconBtn({
     required this.icon,
     required this.color,
     required this.onTap,
@@ -283,7 +351,7 @@ class _IconButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(30),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8),
           child: Icon(icon, size: 20, color: color),
         ),
       ),

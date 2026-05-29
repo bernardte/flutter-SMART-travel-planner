@@ -62,62 +62,60 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
                   _saved.isEmpty
                       ? SliverFillRemaining(child: _buildEmptyState())
                       : SliverPadding(
-                          padding: const EdgeInsets.all(16),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 340,
-                              childAspectRatio: 0.83,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 20,
-                            ),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, i) {
                                 final guide = _saved[i];
-                                return TweenAnimationBuilder(
-                                  tween: Tween<double>(begin: 0, end: 1),
-                                  duration:
-                                      Duration(milliseconds: 300 + (i * 30)),
-                                  builder: (context, value, child) => Opacity(
-                                    opacity: value,
-                                    child: Transform.translate(
-                                      offset: Offset(0, 20 * (1 - value)),
-                                      child: child,
+                                final itinId = guide.itinerary?['_id'];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: TweenAnimationBuilder(
+                                    tween: Tween<double>(begin: 0, end: 1),
+                                    duration: Duration(
+                                        milliseconds: 300 + (i * 30).clamp(0, 600)),
+                                    builder: (context, value, child) => Opacity(
+                                      opacity: value,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 20 * (1 - value)),
+                                        child: child,
+                                      ),
                                     ),
-                                  ),
-                                  child: GuideCard(
-                                    guide: guide,
-                                    isLiked: guide.isLiked,
-                                    isSaved: guide.isSaved,
-                                    likedCount: guide.likes,
-                                    onTap: () {
-                                      final itinId = guide.itinerary?['_id'];
-                                      if (itinId != null) {
-                                        context.go('/trip-plan/view/$itinId');
-                                      }
-                                    },
-                                    onLike: () {
-                                      // Optimistic update so heart toggles instantly
-                                      _updateGuide(
-                                        guide.id,
-                                        (g) => g.copyWith(
-                                          isLiked: !g.isLiked,
-                                          likes: g.isLiked
-                                              ? g.likes - 1
-                                              : g.likes + 1,
-                                        ),
-                                      );
-                                      ref
-                                          .read(communityProvider.notifier)
-                                          .toggleLike(guide.id);
-                                    },
-                                    onSave: () async {
-                                      await ref
-                                          .read(communityProvider.notifier)
-                                          .toggleSave(guide.id);
-                                      setState(() => _saved
-                                          .removeWhere((g) => g.id == guide.id));
-                                    },
+                                      child: Padding(
+                                      padding: const EdgeInsets.only(top: 17.0),
+                                      child: GuideCard(
+                                        guide: guide,
+                                        isLiked: guide.isLiked,
+                                        isSaved: guide.isSaved,
+                                        likedCount: guide.likes,
+                                        onTap: () {
+                                          if (itinId != null) {
+                                            context.go('/trip-plan/view/$itinId');
+                                          }
+                                        },
+                                        onLike: () {
+                                          _updateGuide(
+                                            guide.id,
+                                            (g) => g.copyWith(
+                                              isLiked: !g.isLiked,
+                                              likes: g.isLiked
+                                                  ? g.likes - 1
+                                                  : g.likes + 1,
+                                            ),
+                                          );
+                                          ref
+                                              .read(communityProvider.notifier)
+                                              .toggleLike(guide.id);
+                                        },
+                                        onSave: () async {
+                                          await ref
+                                              .read(communityProvider.notifier)
+                                              .toggleSave(guide.id);
+                                          setState(() => _saved
+                                              .removeWhere((g) => g.id == guide.id));
+                                        },
+                                      ),
+                                    ),
                                   ),
                                 );
                               },

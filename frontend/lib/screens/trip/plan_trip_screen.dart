@@ -185,7 +185,7 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
     if (mounted) {
       setState(() => _isSaving = false);
       if (ok) {
-        AppSnackbar.success(context, 'Trip saved! 🎉');
+        AppSnackbar.success(context, 'Trip saved!');
         context.go('/dashboard');
       } else {
         AppSnackbar.error(context, 'Failed to save trip');

@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../models/travel_guide_model.dart';
+import '../../models/user_model.dart';
+import '../../repositories/user_repository.dart';
+import '../../core/utils/snackbar.dart';
 import '../../widgets/card/guide_card.dart';
 
 class CommunityScreen extends ConsumerStatefulWidget {
@@ -26,6 +29,65 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
   String _sortBy = 'latest';
   String _selectedCountry = '';
   final Set<String> _selectedTags = {};
+
+  // Follow state
+  // Optimistic overrides: authorId → true/false while API call is in-flight.
+  // After the API resolves the auth state is updated and the override is removed.
+  final Map<String, bool> _followOverride = {};
+  final Set<String> _followLoadingIds = {};
+
+  bool _isFollowing(String authorId, AuthState auth) {
+    if (_followOverride.containsKey(authorId)) {
+      return _followOverride[authorId]!;
+    }
+    return auth.user?.following.contains(authorId) ?? false;
+  }
+
+  Future<void> _toggleFollow(String authorId) async {
+    final auth = ref.read(authProvider);
+    if (auth.user == null) { context.go('/auth'); return; }
+    if (_followLoadingIds.contains(authorId)) return;
+
+    final wasFollowing = _isFollowing(authorId, auth);
+
+    // Optimistic update
+    setState(() {
+      _followOverride[authorId] = !wasFollowing;
+      _followLoadingIds.add(authorId);
+    });
+
+    try {
+      await ref.read(userRepositoryProvider).followUnfollowUser(authorId);
+      // Sync the logged-in user's following list in auth state
+      if (!mounted) return;
+      final user = ref.read(authProvider).user;
+      if (user != null) {
+        final nowFollowing = !wasFollowing;
+        final newList = nowFollowing
+            ? [...user.following, authorId]
+            : user.following.where((id) => id != authorId).toList();
+        ref.read(authProvider.notifier).updateUser(UserModel(
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          name: user.name,
+          profilePicture: user.profilePicture,
+          bio: user.bio,
+          followers: user.followers,
+          following: newList,
+        ));
+      }
+      // Override no longer needed — auth state is the source of truth now
+      setState(() => _followOverride.remove(authorId));
+    } catch (_) {
+      // Revert optimistic update
+      if (!mounted) return;
+      setState(() => _followOverride[authorId] = wasFollowing);
+      AppSnackbar.error(context, 'Failed to update follow');
+    } finally {
+      if (mounted) setState(() => _followLoadingIds.remove(authorId));
+    }
+  }
 
   @override
   void initState() {
@@ -154,63 +216,81 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                   )
                 : filtered.isEmpty
                     ? SliverFillRemaining(child: _buildEmptyState())
+                    // FIX: replaced SliverGrid (fixed childAspectRatio) with
+                    // SliverList so cards expand to their natural height.
+                    // On Pixel 9 Pro the grid cells were only ~219dp tall but
+                    // the card content needs ~260dp+, clipping the action row.
                     : SliverPadding(
-                        padding: const EdgeInsets.all(16),
-                        sliver: SliverGrid(
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 340,
-                            childAspectRatio: 0.83,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 20,
-                          ),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
                               final guide = filtered[index];
                               final isOwner =
                                   auth.user?.id == guide.author?.id;
-                              return TweenAnimationBuilder(
-                                tween: Tween<double>(begin: 0, end: 1),
-                                duration: Duration(
-                                    milliseconds: 300 + (index * 30)),
-                                builder: (context, value, child) =>
-                                    Opacity(
-                                  opacity: value,
-                                  child: Transform.translate(
-                                    offset: Offset(0, 20 * (1 - value)),
-                                    child: child,
+                              final itinId = guide.itinerary?['_id'];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: TweenAnimationBuilder(
+                                  tween: Tween<double>(begin: 0, end: 1),
+                                  duration: Duration(
+                                      milliseconds: 300 + (index * 30).clamp(0, 600)),
+                                  builder: (context, value, child) =>
+                                      Opacity(
+                                    opacity: value,
+                                    child: Transform.translate(
+                                      offset: Offset(0, 20 * (1 - value)),
+                                      child: child,
+                                    ),
                                   ),
-                                ),
-                                child: GuideCard(
-                                  guide: guide,
-                                  likedCount: guide.likes,
-                                  isLiked: guide.isLiked,
-                                  isSaved: guide.isSaved,
-                                  isOwner: isOwner,
-                                  onTap: () {
-                                    final itinId =
-                                        guide.itinerary?['_id'];
-                                    if (itinId != null) {
-                                      context.push(
-                                          '/trip-plan/view/$itinId');
-                                    }
-                                  },
-                                  onLike: auth.isAuthenticated
-                                      ? () async => ref
-                                          .read(communityProvider
-                                              .notifier)
-                                          .toggleLike(guide.id)
-                                      : () => context.go('/auth'),
-                                  onSave: auth.isAuthenticated
-                                      ? () => ref
-                                          .read(communityProvider
-                                              .notifier)
-                                          .toggleSave(guide.id)
-                                      : () => context.go('/auth'),
-                                  onDelete: isOwner
-                                      ? () =>
-                                          _confirmDelete(context, guide.id)
-                                      : null,
+                                  child: GuideCard(
+                                    guide: guide,
+                                    likedCount: guide.likes,
+                                    isLiked: guide.isLiked,
+                                    isSaved: guide.isSaved,
+                                    isOwner: isOwner,
+                                    onTap: () {
+                                      if (itinId != null) {
+                                        context.push(
+                                            '/trip-plan/view/$itinId');
+                                      }
+                                    },
+                                    onLike: auth.isAuthenticated
+                                        ? () async => ref
+                                            .read(communityProvider
+                                                .notifier)
+                                            .toggleLike(guide.id)
+                                        : () => context.go('/auth'),
+                                    onSave: auth.isAuthenticated
+                                        ? () => ref
+                                            .read(communityProvider
+                                                .notifier)
+                                            .toggleSave(guide.id)
+                                        : () => context.go('/auth'),
+                                    onDelete: isOwner
+                                        ? () => _confirmDelete(
+                                            context, guide.id)
+                                        : null,
+                                    onEdit: isOwner && itinId != null
+                                        ? () => context.push(
+                                            '/edit-travel-guide/$itinId')
+                                        : null,
+                                    // Follow / unfollow the post's author
+                                    isFollowing: guide.author != null
+                                        ? _isFollowing(
+                                            guide.author!.id, auth)
+                                        : false,
+                                    isFollowLoading: guide.author != null &&
+                                        _followLoadingIds
+                                            .contains(guide.author!.id),
+                                    onFollowToggle: !isOwner &&
+                                            guide.author != null
+                                        ? auth.isAuthenticated
+                                            ? () => _toggleFollow(
+                                                guide.author!.id)
+                                            : () => context.go('/auth')
+                                        : null,
+                                  ),
                                 ),
                               );
                             },
