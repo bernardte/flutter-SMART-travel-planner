@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/helpers/ui/app_loading.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -12,7 +13,7 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fadeAnim;
   late final Animation<double> _scaleAnim;
@@ -193,40 +194,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
+                  const SizedBox(height: 48),
 
-            // Loading indicator at bottom
-            Positioned(
-              bottom: 60,
-              left: 0,
-              right: 0,
-              child: FadeTransition(
-                opacity: _textFadeAnim,
-                child: const Column(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF3B82F6),
+                  FadeTransition(
+                    opacity: _textFadeAnim,
+                    child: const Column(
+                      children: [
+                        AppOrbitLoader(
+                          color: Color(0xFF3B82F6),
+                          iconSize: 32,
                         ),
-                      ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Loading...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF64748B),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 14),
-                    Text(
-                      'Loading...',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF64748B),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
