@@ -45,6 +45,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final posts = await _repo.getAllPublicPosts();
+      print("Posts: $posts");
       state = state.copyWith(publicPosts: posts, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);

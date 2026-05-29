@@ -85,7 +85,7 @@ class _EditTripPlanScreenState extends ConsumerState<EditTripPlanScreen> {
       appBar: AppBar(
         title: const Text('Edit Travel Guide'),
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+            icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/dashboard')),
       ),
       body: Form(
         key: _formKey,

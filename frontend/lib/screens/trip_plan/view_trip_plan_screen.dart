@@ -85,6 +85,8 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
       final repo = ref.read(tripPlanRepositoryProvider);
       final comment = await repo.createComment(
           widget.tripPlanId, _commentCtrl.text.trim());
+      // BUG FIX: guard setState after every await
+      if (!mounted) return;
       setState(() {
         _comments.add(comment);
         _commentCtrl.clear();
@@ -96,11 +98,41 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
     }
   }
 
+  // BUG FIX: show confirmation before deleting
+  Future<void> _confirmAndDelete(String commentId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete comment?'),
+        content: const Text('This comment will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red[600]),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) _deleteComment(commentId);
+  }
+
   Future<void> _deleteComment(String commentId) async {
     try {
       final repo = ref.read(tripPlanRepositoryProvider);
       await repo.deleteComment(widget.tripPlanId, commentId);
-      setState(() => _comments.removeWhere((c) => c.id == commentId));
+      // BUG FIX: guard setState + clear edit state if we deleted the
+      // comment that was being edited
+      if (!mounted) return;
+      setState(() {
+        _comments.removeWhere((c) => c.id == commentId);
+        if (_editingCommentId == commentId) _editingCommentId = null;
+      });
     } catch (_) {
       if (mounted) AppSnackbar.error(context, 'Failed to delete comment');
     }
@@ -112,6 +144,8 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
       final repo = ref.read(tripPlanRepositoryProvider);
       final updated = await repo.updateComment(
           widget.tripPlanId, commentId, _editCtrl.text.trim());
+      // BUG FIX: guard setState after await
+      if (!mounted) return;
       setState(() {
         _comments =
             _comments.map((c) => c.id == commentId ? updated : c).toList();
@@ -151,7 +185,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
         title: Text(plan['title'] ?? 'Travel Guide',
             overflow: TextOverflow.ellipsis),
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+            icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/community-guide')),
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
@@ -237,9 +271,19 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
                                     setState(
                                         () => _editingCommentId = c.id);
                                   },
-                                  onDelete: () => _deleteComment(c.id!),
-                                  onSaveEdit: () =>
-                                      _saveEditComment(c.id!),
+                                  // BUG FIX: c.id is nullable — guard before
+                                  // force-unwrap; route delete through
+                                  // confirmation dialog
+                                  onDelete: () {
+                                    if (c.id != null) {
+                                      _confirmAndDelete(c.id!);
+                                    }
+                                  },
+                                  onSaveEdit: () {
+                                    if (c.id != null) {
+                                      _saveEditComment(c.id!);
+                                    }
+                                  },
                                   onCancelEdit: () => setState(
                                       () => _editingCommentId = null),
                                 ))
@@ -262,7 +306,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
                     Border(top: BorderSide(color: Colors.grey[200]!)),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 8,
                       offset: const Offset(0, -2))
                 ],
@@ -373,7 +417,10 @@ class _HeaderCard extends StatelessWidget {
                   : null,
               backgroundColor: Colors.blue[100],
               child: authorAvatar.isEmpty
-                  ? Text(authorName[0].toUpperCase(),
+                  ? Text(
+                      authorName.isNotEmpty
+                          ? authorName[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(fontWeight: FontWeight.bold))
                   : null,
             ),
@@ -531,8 +578,8 @@ class _SectionTile extends StatelessWidget {
 
                   // Places
                   if (places.isNotEmpty) ...[
-                    Text('Places',
-                        style: const TextStyle(
+                    const Text('Places',
+                        style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 13)),
                     const SizedBox(height: 8),
                     ...places.map((p) => _PlaceRow(place: p)),
@@ -541,8 +588,8 @@ class _SectionTile extends StatelessWidget {
                   // Route
                   if (route.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text('Route',
-                        style: const TextStyle(
+                    const Text('Route',
+                        style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 13)),
                     const SizedBox(height: 6),
                     ...route.asMap().entries.map((e) => Padding(
@@ -715,7 +762,10 @@ class _CommentTile extends StatelessWidget {
               : null,
           backgroundColor: Colors.blue[100],
           child: (comment.user.profilePicture?.isEmpty ?? true)
-              ? Text(comment.user.username[0].toUpperCase(),
+              ? Text(
+                  comment.user.username.isNotEmpty
+                      ? comment.user.username[0].toUpperCase()
+                      : '?',
                   style: const TextStyle(
                       fontSize: 12, fontWeight: FontWeight.bold))
               : null,

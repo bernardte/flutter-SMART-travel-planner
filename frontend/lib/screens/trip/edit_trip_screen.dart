@@ -222,7 +222,7 @@ class _EditTripScreenState extends ConsumerState<EditTripScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Edit: ${_countryCtrl.text}'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/dashboard')),
         actions: [
           TextButton.icon(
             onPressed: _saving ? null : _save,

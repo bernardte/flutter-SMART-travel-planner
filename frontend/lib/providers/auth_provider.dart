@@ -69,6 +69,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final user = await _repo.login(email, password);
+      print("user: $user");
       state = AuthState(user: user);
     } catch (e) {
       state = AuthState(error: e.toString());

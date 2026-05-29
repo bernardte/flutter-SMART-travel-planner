@@ -1,6 +1,7 @@
 // lib/repositories/user_repository.dart
 // Replaces frontend/src/api/user.api.ts
 
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,9 +16,17 @@ class UserRepository {
 
   Future<UserModel> getUserProfile(String username) async {
     try {
-      final res =
-          await _dio.get(ApiConstants.getUserProfile(username));
-      return UserModel.fromJson(res.data['data']);
+      final res = await _dio.get(ApiConstants.getUserProfile(username));
+      // Dio may return the body as a raw String when the server omits
+      // Content-Type: application/json. Decode once if needed.
+      final body = res.data is String
+          ? jsonDecode(res.data as String)
+          : res.data;
+      final data = body['data'];
+      final json = data is String
+          ? jsonDecode(data) as Map<String, dynamic>
+          : data as Map<String, dynamic>;
+      return UserModel.fromJson(json);
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
@@ -25,9 +34,12 @@ class UserRepository {
 
   Future<List<dynamic>> getUserPublishTravelGuide(String userId) async {
     try {
-      final res = await _dio
-          .get(ApiConstants.getUserPublishTravelGuide(userId));
-      return res.data['data'] as List? ?? [];
+      final res =
+          await _dio.get(ApiConstants.getUserPublishTravelGuide(userId));
+      final body = res.data is String
+          ? jsonDecode(res.data as String)
+          : res.data;
+      return body['data'] as List? ?? [];
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }

@@ -82,7 +82,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
           else
             TextButton.icon(
               onPressed: () =>
-                  context.go('/profile/${authState.user!.username}'),
+                  context.push('/profile/${authState.user!.username}'),
               icon: const Icon(Icons.person_outline, size: 18),
               label: Text('@${authState.user!.username}'),
             ),

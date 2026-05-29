@@ -111,7 +111,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Post'),
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.canPop() ? context.pop() : context.go('/community-guide')),
       ),
       body: Form(
         key: _formKey,

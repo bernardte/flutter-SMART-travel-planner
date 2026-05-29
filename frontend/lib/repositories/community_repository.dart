@@ -17,7 +17,10 @@ class CommunityRepository {
     try {
       final res = await _dio.get(ApiConstants.publicPosts);
       final list = res.data['data'] as List? ?? [];
-      return list.map((g) => TravelGuideModel.fromJson(g)).toList();
+      print("list received from Backend: $list");
+      final travelList = list.map((g) => TravelGuideModel.fromJson(g)).toList();
+      print("Converted to dart list: $travelList"); 
+      return travelList;
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
