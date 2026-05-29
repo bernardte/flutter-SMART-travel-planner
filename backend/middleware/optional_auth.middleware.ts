@@ -5,7 +5,12 @@ import User from "../models/user.model.js";
 import type { DecodedToken } from "./protect_route.middleware.js";
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const token = req.cookies.accessToken;
+        let token: string | undefined = req.cookies.accessToken;
+
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        }
 
         if (!token) {
             delete (req as any).user;
