@@ -42,12 +42,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final guides = await repo.getUserPublishTravelGuide(user.id);
       print("your guide: $guides");
       final currentUser = ref.read(authProvider).user;
-      // BUG FIX: guard setState after every await
       if (!mounted) return;
       setState(() {
         _profileUser = user;
-        // FIX: Dio may return LinkedHashMap which `as Map<String,dynamic>` rejects.
-        // Use Map<String,dynamic>.from() to safely convert any Map subtype.
         _publishedGuides = guides
             .whereType<Map>()
             .map((g) => TravelGuideModel.fromJson(Map<String, dynamic>.from(g)))
@@ -64,7 +61,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _toggleFollow() async {
-    // BUG FIX: null guard before force-unwrap
     final user = _profileUser;
     if (user == null) return;
     final currentUser = ref.read(authProvider).user;
@@ -132,7 +128,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         color: const Color(0xFF3B82F6),
         child: CustomScrollView(
           slivers: [
-            // ── Pinned AppBar (toolbar only, no expandedHeight) ─────
             SliverAppBar(
               pinned: true,
               backgroundColor: const Color(0xFF1D4ED8),
@@ -169,16 +164,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
 
-            // ── Gradient banner + profile card (overlap via Stack) ──
-            // FIX: using Matrix4.translationValues moves the widget
-            // visually but leaves the original layout space, creating
-            // a 40px gap. A Stack properly accounts for the overlap
-            // in the layout measurement.
             SliverToBoxAdapter(
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Gradient banner — 120px tall
                   Container(
                     height: 120,
                     width: double.infinity,
@@ -224,10 +213,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
 
-                  // Profile card — starts at top: 80px, so it
-                  // overlaps the gradient by 40px (120 - 80 = 40).
-                  // The Stack sizes to max(120, 80 + cardHeight),
-                  // which is 80 + cardHeight. No gap, no transform.
                   Padding(
                     padding:
                         const EdgeInsets.fromLTRB(16, 80, 16, 16),
@@ -245,7 +230,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
 
-            // ── Section header ──────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding:
@@ -274,7 +258,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
 
-            // ── Guide list ──────────────────────────────────────────
             _publishedGuides.isEmpty
                 ? SliverFillRemaining(
                     hasScrollBody: false,
@@ -313,218 +296,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // ── Edit profile bottom sheet ───────────────────────────────────────────
-
   void _showEditSheet(BuildContext context, UserModel user) {
-    // BUG FIX: create controllers here and dispose them via .then() when
-    // the sheet is dismissed — prevents memory leak
-    final nameCtrl = TextEditingController(text: user.name);
-    final usernameCtrl = TextEditingController(text: user.username);
-    final bioCtrl = TextEditingController(text: user.bio ?? '');
-    File? newPicture;
-    bool saving = false;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Edit Profile',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-
-                // Avatar picker
-                Center(
-                  child: GestureDetector(
-                    onTap: () async {
-                      final picked = await ImagePicker()
-                          .pickImage(source: ImageSource.gallery);
-                      if (picked != null && ctx.mounted) {
-                        setModal(
-                            () => newPicture = File(picked.path));
-                      }
-                    },
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 44,
-                          backgroundColor: Colors.blue[100],
-                          backgroundImage: newPicture != null
-                              ? FileImage(newPicture!)
-                                  as ImageProvider
-                              : (user.profilePicture != null
-                                  ? CachedNetworkImageProvider(
-                                      user.profilePicture!)
-                                  : null),
-                          child: newPicture == null &&
-                                  user.profilePicture == null
-                              ? const Icon(Icons.person,
-                                  size: 44, color: Colors.white)
-                              : null,
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF3B82F6),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt,
-                                size: 15, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Center(
-                  child: Text('Tap to change photo',
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.grey)),
-                ),
-                const SizedBox(height: 20),
-
-                // BUG FIX: Name field was missing
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Display Name',
-                    prefixIcon: Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: usernameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    prefixIcon: Icon(Icons.alternate_email),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: bioCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Bio',
-                    prefixIcon: Icon(Icons.edit_note_outlined),
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  maxLines: 3,
-                  maxLength: 160,
-                ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            setModal(() => saving = true);
-                            try {
-                              final updated = await ref
-                                  .read(userRepositoryProvider)
-                                  .updateUserProfile(
-                                    username:
-                                        usernameCtrl.text.trim(),
-                                    bio: bioCtrl.text.trim(),
-                                    profilePicture: newPicture,
-                                  );
-                              ref
-                                  .read(authProvider.notifier)
-                                  .updateUser(updated);
-
-                              // BUG FIX: use early-return pattern —
-                              // each context is checked with its own
-                              // mounted guard immediately before use,
-                              // avoiding "unrelated mounted" lint warning
-                              if (!ctx.mounted) return;
-                              Navigator.pop(ctx);
-                              if (!mounted) return;
-                              AppSnackbar.success(
-                                  context, 'Profile updated!');
-                              _load();
-                            } catch (e) {
-                              if (!mounted) return;
-                              AppSnackbar.error(
-                                  context, 'Failed: $e');
-                            } finally {
-                              // BUG FIX: ctx.mounted check before
-                              // calling setModal on a dismissed sheet
-                              if (ctx.mounted) {
-                                setModal(() => saving = false);
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: saving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white))
-                        : const Text('Save Changes',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      // FIX: use a proper ConsumerStatefulWidget instead of StatefulBuilder.
+      // StatefulBuilder has no real mounted check — ctx.mounted reflects the
+      // route context, not the builder's state, so setState() (setModal) can
+      // fire after the sheet is disposed, causing the
+      // '_dependents.isEmpty' assertion crash.
+      // A real StatefulWidget has a correct mounted lifecycle that becomes
+      // false the moment the widget is removed from the tree.
+      builder: (ctx) => _EditProfileSheet(
+        user: user,
+        onSaved: () {
+          if (mounted) {
+            AppSnackbar.success(context, 'Profile updated!');
+            _load();
+          }
+        },
+        onError: (e) {
+          if (mounted) AppSnackbar.error(context, 'Failed: $e');
+        },
       ),
-    // BUG FIX: dispose controllers when sheet is dismissed
-    ).then((_) {
-      nameCtrl.dispose();
-      usernameCtrl.dispose();
-      bioCtrl.dispose();
-    });
+    );
   }
 }
-
-// ── Gradient banner ───────────────────────────────────────────────────────────
 
 // ── Profile card (avatar + info + stats + follow button) ─────────────────────
 
@@ -564,7 +362,6 @@ class _ProfileCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
       child: Column(
         children: [
-          // Avatar
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -594,7 +391,6 @@ class _ProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Name
           Text(
             user.name,
             style: const TextStyle(
@@ -602,11 +398,9 @@ class _ProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 3),
 
-          // @username
           Text('@${user.username}',
               style: TextStyle(color: Colors.grey[500], fontSize: 14)),
 
-          // Bio
           if (user.bio != null && user.bio!.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
@@ -623,7 +417,6 @@ class _ProfileCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 16),
 
-          // Stats row: Followers | Following | Guides | Likes
           IntrinsicHeight(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -647,7 +440,6 @@ class _ProfileCard extends StatelessWidget {
             ),
           ),
 
-          // Follow / Unfollow button (only on other profiles)
           if (!isOwnProfile) ...[
             const SizedBox(height: 16),
             SizedBox(
@@ -716,7 +508,6 @@ class _GuideCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Thumbnail
             ClipRRect(
               borderRadius: const BorderRadius.horizontal(
                   left: Radius.circular(16)),
@@ -734,7 +525,6 @@ class _GuideCard extends StatelessWidget {
               ),
             ),
 
-            // Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -913,6 +703,208 @@ class _EmptyGuides extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Edit profile bottom sheet (proper StatefulWidget — avoids StatefulBuilder
+//    mounted race condition that causes '_dependents.isEmpty' crash) ──────────
+
+class _EditProfileSheet extends ConsumerStatefulWidget {
+  final UserModel user;
+  final VoidCallback onSaved;
+  final void Function(dynamic) onError;
+
+  const _EditProfileSheet({
+    required this.user,
+    required this.onSaved,
+    required this.onError,
+  });
+
+  @override
+  ConsumerState<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _usernameCtrl;
+  late final TextEditingController _bioCtrl;
+  File? _newPicture;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.user.name);
+    _usernameCtrl = TextEditingController(text: widget.user.username);
+    _bioCtrl = TextEditingController(text: widget.user.bio ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _bioCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _saving = true);
+    try {
+      final updated = await ref
+          .read(userRepositoryProvider)
+          .updateUserProfile(
+            username: _usernameCtrl.text.trim(),
+            bio: _bioCtrl.text.trim(),
+            profilePicture: _newPicture,
+          );
+      ref.read(authProvider.notifier).updateUser(updated);
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onSaved();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      widget.onError(e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Edit Profile',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+
+            Center(
+              child: GestureDetector(
+                onTap: () async {
+                  final picked = await ImagePicker()
+                      .pickImage(source: ImageSource.gallery);
+                  if (picked != null && mounted) {
+                    setState(() => _newPicture = File(picked.path));
+                  }
+                },
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 44,
+                      backgroundColor: Colors.blue[100],
+                      backgroundImage: _newPicture != null
+                          ? FileImage(_newPicture!) as ImageProvider
+                          : (widget.user.profilePicture != null
+                              ? CachedNetworkImageProvider(
+                                  widget.user.profilePicture!)
+                              : null),
+                      child: _newPicture == null &&
+                              widget.user.profilePicture == null
+                          ? const Icon(Icons.person,
+                              size: 44, color: Colors.white)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF3B82F6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt,
+                            size: 15, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Center(
+              child: Text('Tap to change photo',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ),
+            const SizedBox(height: 20),
+
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Display Name',
+                prefixIcon: Icon(Icons.badge_outlined),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _usernameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                prefixIcon: Icon(Icons.alternate_email),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _bioCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Bio',
+                prefixIcon: Icon(Icons.edit_note_outlined),
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 3,
+              maxLength: 160,
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Save Changes',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
