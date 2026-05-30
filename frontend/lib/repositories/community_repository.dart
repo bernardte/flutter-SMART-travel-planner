@@ -17,10 +17,7 @@ class CommunityRepository {
     try {
       final res = await _dio.get(ApiConstants.publicPosts);
       final list = res.data['data'] as List? ?? [];
-      print("list received from Backend: $list");
-      final travelList = list.map((g) => TravelGuideModel.fromJson(g)).toList();
-      print("Converted to dart list: $travelList"); 
-      return travelList;
+      return list.map((g) => TravelGuideModel.fromJson(g)).toList();
     } on DioException catch (e) {
       throw ApiException.fromDioError(e);
     }
@@ -63,6 +60,7 @@ class CommunityRepository {
     required String privacy,
     required List<String> tags,
     required String itineraryId,
+    required String authorId,
     File? image,
     void Function(int percent)? onProgress,
   }) async {
@@ -72,8 +70,9 @@ class CommunityRepository {
         'description': description,
         'country': country,
         'privacy': privacy,
-        'tags': tags.join(','),
+        'tags': '[${tags.map((t) => '"$t"').join(',')}]',
         'itineraryId': itineraryId,
+        'authorId': authorId,
         if (image != null)
           'image': await MultipartFile.fromFile(
             image.path,
@@ -111,7 +110,7 @@ class CommunityRepository {
         'description': description,
         'country': country,
         'privacy': privacy,
-        'tags': tags.join(','),
+        'tags': '[${tags.map((t) => '"$t"').join(',')}]',
         if (image != null)
           'image': await MultipartFile.fromFile(
             image.path,

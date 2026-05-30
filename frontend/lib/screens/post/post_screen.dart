@@ -86,6 +86,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(communityRepositoryProvider);
+      final user = ref.read(authProvider).user!;
       final guide = await repo.createPost(
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
@@ -93,6 +94,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
         privacy: _privacy,
         tags: _tags,
         itineraryId: _selectedItineraryId!,
+        authorId: user.id,
         image: _image,
         onProgress: (p) => setState(() => _uploadProgress = p),
       );
@@ -111,7 +113,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Post'),
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.canPop() ? context.pop() : context.go('/community-guide')),
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
       ),
       body: Form(
         key: _formKey,
