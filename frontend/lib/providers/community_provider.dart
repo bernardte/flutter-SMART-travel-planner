@@ -1,6 +1,7 @@
 // lib/providers/community_provider.dart
 // Replaces frontend/src/stores/useCommunityTravelGuideStore.ts
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/travel_guide_model.dart';
 import '../repositories/community_repository.dart';
@@ -10,6 +11,7 @@ class CommunityState {
   final List<TravelGuideModel> recommendedGuides;
   final List<TravelGuideModel> followersGuides;
   final bool isLoading;
+  final bool isLoadingRecommendations;
   final String? error;
 
   const CommunityState({
@@ -17,6 +19,7 @@ class CommunityState {
     this.recommendedGuides = const [],
     this.followersGuides = const [],
     this.isLoading = false,
+    this.isLoadingRecommendations = false,
     this.error,
   });
 
@@ -25,6 +28,7 @@ class CommunityState {
     List<TravelGuideModel>? recommendedGuides,
     List<TravelGuideModel>? followersGuides,
     bool? isLoading,
+    bool? isLoadingRecommendations,
     String? error,
     bool clearError = false,
   }) =>
@@ -33,6 +37,8 @@ class CommunityState {
         recommendedGuides: recommendedGuides ?? this.recommendedGuides,
         followersGuides: followersGuides ?? this.followersGuides,
         isLoading: isLoading ?? this.isLoading,
+        isLoadingRecommendations:
+            isLoadingRecommendations ?? this.isLoadingRecommendations,
         error: clearError ? null : error ?? this.error,
       );
 }
@@ -53,17 +59,26 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
   }
 
   Future<void> fetchRecommendedGuides() async {
+    state = state.copyWith(isLoadingRecommendations: true);
     try {
       final guides = await _repo.getRecommendedGuides();
-      state = state.copyWith(recommendedGuides: guides);
-    } catch (_) {}
+      state = state.copyWith(
+        recommendedGuides: guides,
+        isLoadingRecommendations: false,
+      );
+    } catch (e) {
+      debugPrint('fetchRecommendedGuides error: $e');
+      state = state.copyWith(isLoadingRecommendations: false);
+    }
   }
 
   Future<void> fetchFollowersGuides() async {
     try {
       final guides = await _repo.getFollowersGuides();
       state = state.copyWith(followersGuides: guides);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('fetchFollowersGuides error: $e');
+    }
   }
 
   Future<void> toggleLike(String postId) async {

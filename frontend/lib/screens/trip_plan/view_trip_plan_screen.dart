@@ -6,17 +6,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/community_provider.dart';
 import '../../repositories/trip_plan_repository.dart';
 import '../../models/comment_model.dart';
 import '../../core/utils/snackbar.dart';
+
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const _kBlue     = Color(0xFF3B82F6);
+const _kCyan     = Color(0xFF06B6D4);
+const _kDark     = Color(0xFF1F2937);
+const _kDarkBlue = Color(0xFF1E3A8A);
+const _kBg       = Color(0xFFF4F9FF);
+const _kInputFill   = Color(0xFFF0F9FF);
+const _kInputBorder = Color(0xFFBAE6FD);
+
+const _categories = [
+  (value: 'attraction', label: 'Attraction', icon: Icons.museum_outlined,    color: Color(0xFF3B82F6)),
+  (value: 'restaurant', label: 'Restaurant', icon: Icons.restaurant_outlined, color: Color(0xFFEF4444)),
+  (value: 'cafe',       label: 'Café',       icon: Icons.coffee_outlined,     color: Color(0xFF92400E)),
+  (value: 'viewpoint',  label: 'Viewpoint',  icon: Icons.landscape_outlined,  color: Color(0xFF10B981)),
+  (value: 'other',      label: 'Other',      icon: Icons.place_outlined,      color: Color(0xFF6B7280)),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ViewTripPlanScreen extends ConsumerStatefulWidget {
   final String tripPlanId;
   const ViewTripPlanScreen({super.key, required this.tripPlanId});
 
   @override
-  ConsumerState<ViewTripPlanScreen> createState() => _ViewTripPlanScreenState();
+  ConsumerState<ViewTripPlanScreen> createState() =>
+      _ViewTripPlanScreenState();
 }
 
 class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
@@ -27,8 +46,6 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
   final _commentCtrl = TextEditingController();
   String? _editingCommentId;
   final _editCtrl = TextEditingController();
-
-  // Track which sections are expanded
   final Set<int> _expandedSections = {};
 
   @override
@@ -49,8 +66,6 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
       final repo = ref.read(tripPlanRepositoryProvider);
       final plan = await repo.getTripPlan(widget.tripPlanId);
       final comments = await repo.getComments(widget.tripPlanId);
-
-      // Expand first section by default
       if (mounted) {
         setState(() {
           _tripPlan = plan;
@@ -70,11 +85,7 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
 
   List<Map<String, dynamic>> _getSections(Map<String, dynamic> plan) {
     final raw = plan['sections'];
-    if (raw is List) {
-      return raw
-          .whereType<Map<String, dynamic>>()
-          .toList();
-    }
+    if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
     return [];
   }
 
@@ -82,10 +93,9 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
     if (_commentCtrl.text.trim().isEmpty) return;
     setState(() => _submittingComment = true);
     try {
-      final repo = ref.read(tripPlanRepositoryProvider);
-      final comment = await repo.createComment(
-          widget.tripPlanId, _commentCtrl.text.trim());
-      // BUG FIX: guard setState after every await
+      final comment = await ref
+          .read(tripPlanRepositoryProvider)
+          .createComment(widget.tripPlanId, _commentCtrl.text.trim());
       if (!mounted) return;
       setState(() {
         _comments.add(comment);
@@ -98,12 +108,12 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
     }
   }
 
-  // BUG FIX: show confirmation before deleting
   Future<void> _confirmAndDelete(String commentId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete comment?'),
         content: const Text('This comment will be permanently removed.'),
         actions: [
@@ -113,7 +123,8 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red[600]),
+            style:
+                TextButton.styleFrom(foregroundColor: Colors.red[600]),
             child: const Text('Delete'),
           ),
         ],
@@ -124,10 +135,9 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
 
   Future<void> _deleteComment(String commentId) async {
     try {
-      final repo = ref.read(tripPlanRepositoryProvider);
-      await repo.deleteComment(widget.tripPlanId, commentId);
-      // BUG FIX: guard setState + clear edit state if we deleted the
-      // comment that was being edited
+      await ref
+          .read(tripPlanRepositoryProvider)
+          .deleteComment(widget.tripPlanId, commentId);
       if (!mounted) return;
       setState(() {
         _comments.removeWhere((c) => c.id == commentId);
@@ -141,10 +151,10 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
   Future<void> _saveEditComment(String commentId) async {
     if (_editCtrl.text.trim().isEmpty) return;
     try {
-      final repo = ref.read(tripPlanRepositoryProvider);
-      final updated = await repo.updateComment(
-          widget.tripPlanId, commentId, _editCtrl.text.trim());
-      // BUG FIX: guard setState after await
+      final updated = await ref
+          .read(tripPlanRepositoryProvider)
+          .updateComment(
+              widget.tripPlanId, commentId, _editCtrl.text.trim());
       if (!mounted) return;
       setState(() {
         _comments =
@@ -152,20 +162,25 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
         _editingCommentId = null;
       });
     } catch (_) {
-      if (mounted) AppSnackbar.error(context, 'Failed to update comment');
+      if (mounted)
+        AppSnackbar.error(context, 'Failed to update comment');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: _kBg,
+        body: Center(child: CircularProgressIndicator(color: _kBlue)),
+      );
     }
 
     final plan = _tripPlan;
     if (plan == null) {
       return Scaffold(
-        appBar: AppBar(),
+        backgroundColor: _kBg,
+        appBar: _buildAppBar(context, 'Guide not found', false, null),
         body: const Center(child: Text('Guide not found')),
       );
     }
@@ -173,200 +188,272 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
     final auth = ref.watch(authProvider);
     final user = auth.user;
     final sections = _getSections(plan);
-
-    // Author — guide stores denormalised fields directly
     final authorName = plan['authorName'] as String? ?? '';
     final authorAvatar = plan['authorAvatar'] as String? ?? '';
     final authorIntro = plan['authorIntro'] as String? ?? '';
     final isOwner = user?.id == plan['userId']?.toString();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(plan['title'] ?? 'Travel Guide',
-            overflow: TextOverflow.ellipsis),
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back), onPressed: () => context.canPop() ? context.pop() : context.go('/community-guide')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () {
-              Clipboard.setData(
-                  ClipboardData(text: 'Travel Guide: ${plan['title']}'));
-              AppSnackbar.success(context, 'Link copied!');
-            },
-          ),
-          if (isOwner)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () =>
-                  context.go('/edit-travel-guide/${widget.tripPlanId}'),
-            ),
-        ],
+      backgroundColor: _kBg,
+      appBar: _buildAppBar(
+        context,
+        plan['title'] as String? ?? 'Travel Guide',
+        isOwner,
+        () => context.go('/edit-travel-guide/${widget.tripPlanId}'),
       ),
       body: Column(
         children: [
+          // ── Scrollable content ────────────────────────────────────────
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Header card ──────────────────────────────────────────
-                  _HeaderCard(
+            child: CustomScrollView(
+              slivers: [
+                // ── Hero header ─────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: _HeroHeader(
                     plan: plan,
                     authorName: authorName,
                     authorAvatar: authorAvatar,
                     authorIntro: authorIntro,
                     commentCount: _comments.length,
                   ),
+                ),
 
-                  // ── Sections (days + tips) ───────────────────────────────
-                  if (sections.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                      child: Text('Itinerary',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                    ...sections.asMap().entries.map((e) => _SectionTile(
-                          index: e.key,
-                          section: e.value,
-                          isExpanded: _expandedSections.contains(e.key),
-                          onToggle: () => setState(() {
-                            if (_expandedSections.contains(e.key)) {
-                              _expandedSections.remove(e.key);
-                            } else {
-                              _expandedSections.add(e.key);
-                            }
-                          }),
-                        )),
-                  ],
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-                  // ── Comments ─────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                    child: Text('Comments (${_comments.length})',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                  if (_comments.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Text('No comments yet. Be the first!',
-                            style: TextStyle(color: Colors.grey[400])),
-                      ),
-                    )
-                  else
-                    Padding(
+                // ── Itinerary sections ──────────────────────────────────
+                if (sections.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: _comments
-                            .map((c) => _CommentTile(
-                                  comment: c,
-                                  isOwner: user?.id == c.user.id,
-                                  isEditing: _editingCommentId == c.id,
-                                  editCtrl: _editCtrl,
-                                  onEdit: () {
-                                    _editCtrl.text = c.content;
-                                    setState(
-                                        () => _editingCommentId = c.id);
-                                  },
-                                  // BUG FIX: c.id is nullable — guard before
-                                  // force-unwrap; route delete through
-                                  // confirmation dialog
-                                  onDelete: () {
-                                    if (c.id != null) {
-                                      _confirmAndDelete(c.id!);
-                                    }
-                                  },
-                                  onSaveEdit: () {
-                                    if (c.id != null) {
-                                      _saveEditComment(c.id!);
-                                    }
-                                  },
-                                  onCancelEdit: () => setState(
-                                      () => _editingCommentId = null),
-                                ))
-                            .toList(),
+                      child: _SectionHeader(
+                          icon: Icons.route_rounded, label: 'Itinerary'),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) => TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: Duration(
+                              milliseconds:
+                                  250 + (i * 40).clamp(0, 400)),
+                          builder: (_, v, child) => Opacity(
+                            opacity: v,
+                            child: Transform.translate(
+                              offset: Offset(0, 16 * (1 - v)),
+                              child: child,
+                            ),
+                          ),
+                          child: _SectionTile(
+                            index: i,
+                            section: sections[i],
+                            isExpanded: _expandedSections.contains(i),
+                            onToggle: () => setState(() {
+                              if (_expandedSections.contains(i)) {
+                                _expandedSections.remove(i);
+                              } else {
+                                _expandedSections.add(i);
+                              }
+                            }),
+                          ),
+                        ),
+                        childCount: sections.length,
                       ),
                     ),
-                  const SizedBox(height: 80),
+                  ),
                 ],
-              ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                // ── Comments ────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _SectionHeader(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      label: 'Comments (${_comments.length})',
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+                if (_comments.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.chat_bubble_outline,
+                                size: 40, color: Colors.grey[300]),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No comments yet. Be the first!',
+                              style: TextStyle(
+                                  color: Colors.grey[400], fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) {
+                          final c = _comments[i];
+                          return _CommentTile(
+                            comment: c,
+                            isOwner: user?.id == c.user.id,
+                            isEditing: _editingCommentId == c.id,
+                            editCtrl: _editCtrl,
+                            onEdit: () {
+                              _editCtrl.text = c.content;
+                              setState(
+                                  () => _editingCommentId = c.id);
+                            },
+                            onDelete: () {
+                              if (c.id != null) _confirmAndDelete(c.id!);
+                            },
+                            onSaveEdit: () {
+                              if (c.id != null) _saveEditComment(c.id!);
+                            },
+                            onCancelEdit: () =>
+                                setState(() => _editingCommentId = null),
+                          );
+                        },
+                        childCount: _comments.length,
+                      ),
+                    ),
+                  ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
             ),
           ),
 
-          // ── Comment input ────────────────────────────────────────────────
-          if (auth.isAuthenticated)
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border:
-                    Border(top: BorderSide(color: Colors.grey[200]!)),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, -2))
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _commentCtrl,
-                      decoration: const InputDecoration(
-                          hintText: 'Write a comment...',
-                          isDense: true,
-                          contentPadding: EdgeInsets.all(10)),
-                      maxLines: null,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _submittingComment ? null : _submitComment,
-                    icon: _submittingComment
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send_rounded,
-                            color: Color(0xFF3B82F6)),
-                  ),
-                ]),
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.grey[50],
-              child: SafeArea(
-                top: false,
-                child: TextButton.icon(
-                  onPressed: () => context.go('/auth'),
-                  icon: const Icon(Icons.login),
-                  label: const Text('Login to comment'),
-                ),
-              ),
-            ),
+          // ── Comment input bar ─────────────────────────────────────────
+          _CommentInputBar(
+            auth: auth,
+            controller: _commentCtrl,
+            submitting: _submittingComment,
+            onSubmit: _submitComment,
+            onLoginTap: () => context.go('/auth'),
+          ),
         ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    String title,
+    bool isOwner,
+    VoidCallback? onEdit,
+  ) {
+    return AppBar(
+      titleSpacing: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: _kBlue),
+        onPressed: () => context.canPop()
+            ? context.pop()
+            : context.go('/community-guide'),
+      ),
+      title: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [_kBlue, _kCyan]),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.auto_awesome_rounded,
+              color: Colors.white, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: _kDarkBlue,
+            ),
+          ),
+        ),
+      ]),
+      centerTitle: false,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.share_outlined, color: _kBlue),
+          tooltip: 'Share',
+          onPressed: () {
+            Clipboard.setData(
+                ClipboardData(text: 'Travel Guide: $title'));
+            AppSnackbar.success(context, 'Link copied!');
+          },
+        ),
+        if (isOwner && onEdit != null)
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: _kBlue),
+            tooltip: 'Edit guide',
+            onPressed: onEdit,
+          ),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(height: 1, color: Colors.grey[100]),
       ),
     );
   }
 }
 
-// ── Header card ────────────────────────────────────────────────────────────────
+// ── Section header (left bar style) ──────────────────────────────────────────
 
-class _HeaderCard extends StatelessWidget {
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _SectionHeader({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Container(
+        width: 4,
+        height: 20,
+        decoration: BoxDecoration(
+          color: _kBlue,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Icon(icon, size: 16, color: _kBlue),
+      const SizedBox(width: 6),
+      Text(
+        label,
+        style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: _kDarkBlue),
+      ),
+    ]);
+  }
+}
+
+// ── Hero header ───────────────────────────────────────────────────────────────
+
+class _HeroHeader extends StatelessWidget {
   final Map<String, dynamic> plan;
-  final String authorName;
-  final String authorAvatar;
-  final String authorIntro;
+  final String authorName, authorAvatar, authorIntro;
   final int commentCount;
 
-  const _HeaderCard({
+  const _HeroHeader({
     required this.plan,
     required this.authorName,
     required this.authorAvatar,
@@ -378,100 +465,142 @@ class _HeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final country = plan['country'] as String? ?? '';
     final title = plan['title'] as String? ?? '';
+    final status = plan['publishStatus'] as String? ?? 'public';
 
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Country badge
-        if (country.isNotEmpty)
+        // Country chip
+        if (country.isNotEmpty) ...[
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.blue[50],
+              gradient: const LinearGradient(colors: [_kBlue, _kCyan]),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(country.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5)),
+            child: Text(
+              country.toUpperCase(),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8),
+            ),
           ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 10),
+        ],
 
         // Title
-        Text(title,
-            style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.bold, height: 1.3)),
-        const SizedBox(height: 12),
+        Text(
+          title,
+          style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: _kDark,
+              height: 1.25,
+              letterSpacing: -0.3),
+        ),
+        const SizedBox(height: 14),
 
         // Author row
-        if (authorName.isNotEmpty)
+        if (authorName.isNotEmpty) ...[
           Row(children: [
             CircleAvatar(
-              radius: 20,
+              radius: 22,
+              backgroundColor: _kBlue.withValues(alpha: 0.15),
               backgroundImage: authorAvatar.isNotEmpty
                   ? NetworkImage(authorAvatar)
                   : null,
-              backgroundColor: Colors.blue[100],
               child: authorAvatar.isEmpty
                   ? Text(
                       authorName.isNotEmpty
                           ? authorName[0].toUpperCase()
                           : '?',
-                      style: const TextStyle(fontWeight: FontWeight.bold))
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _kBlue,
+                          fontSize: 16))
                   : null,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('@$authorName',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    if (authorIntro.isNotEmpty)
-                      Text(authorIntro,
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500]),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                  ]),
+                Text(
+                  '@$authorName',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: _kDark),
+                ),
+                if (authorIntro.isNotEmpty)
+                  Text(
+                    authorIntro,
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ]),
             ),
           ]),
+          const SizedBox(height: 14),
+        ],
 
+        const Divider(height: 1, color: Color(0xFFF3F4F6)),
         const SizedBox(height: 12),
 
-        // Stats
+        // Stats row
         Row(children: [
-          _Chip(icon: Icons.chat_bubble_outline,
-              label: '$commentCount comments'),
+          _StatChip(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: '$commentCount comment${commentCount == 1 ? '' : 's'}'),
           const SizedBox(width: 12),
-          _Chip(icon: Icons.public,
-              label: plan['publishStatus'] ?? 'private'),
+          _StatChip(
+              icon: Icons.public_rounded,
+              label: status == 'public' ? 'Public' : 'Private'),
         ]),
       ]),
     );
   }
 }
 
-class _Chip extends StatelessWidget {
+class _StatChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _Chip({required this.icon, required this.label});
+  const _StatChip({required this.icon, required this.label});
 
   @override
-  Widget build(BuildContext context) => Row(children: [
-        Icon(icon, size: 14, color: Colors.grey[500]),
-        const SizedBox(width: 4),
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _kBlue.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: _kBlue),
+        const SizedBox(width: 5),
         Text(label,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      ]);
+            style: const TextStyle(
+                fontSize: 12,
+                color: _kBlue,
+                fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
 }
 
-// ── Section tile (day or tips) ──────────────────────────────────────────────
+// ── Section tile ──────────────────────────────────────────────────────────────
 
 class _SectionTile extends StatelessWidget {
   final int index;
@@ -486,6 +615,14 @@ class _SectionTile extends StatelessWidget {
     required this.onToggle,
   });
 
+  List<dynamic> _asList(dynamic val) => val is List ? val : [];
+
+  String _routeLabel(dynamic r) =>
+      r is Map ? r['name']?.toString() ?? '' : r.toString();
+
+  String _itemLabel(dynamic item) =>
+      item is Map ? item['text']?.toString() ?? '' : item.toString();
+
   @override
   Widget build(BuildContext context) {
     final type = section['type'] as String? ?? 'day';
@@ -495,175 +632,315 @@ class _SectionTile extends StatelessWidget {
     final places = _asList(section['places']);
     final route = _asList(section['route']);
     final listItems = _asList(section['listItems']);
-
     final isTips = type == 'tips';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 1,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isExpanded ? _kBlue : const Color(0xFFE5E7EB),
+          width: isExpanded ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isExpanded ? 0.07 : 0.03),
+            blurRadius: isExpanded ? 14 : 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(children: [
-        // Header row
+        // ── Header ────────────────────────────────────────────────
         InkWell(
           onTap: onToggle,
-          borderRadius:
-              BorderRadius.vertical(top: const Radius.circular(12),
-                  bottom: isExpanded ? Radius.zero : const Radius.circular(12)),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 12),
             child: Row(children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: isTips ? Colors.amber[50] : Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: isTips
+                      ? const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : const LinearGradient(
+                          colors: [_kBlue, _kCyan],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 child: Icon(
-                  isTips ? Icons.lightbulb_outline : Icons.map_outlined,
+                  isTips
+                      ? Icons.lightbulb_rounded
+                      : Icons.calendar_today_rounded,
                   size: 18,
-                  color: isTips ? Colors.amber[700] : Colors.blue[700],
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                  child: Text(title,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15))),
-              Icon(
-                isExpanded
-                    ? Icons.keyboard_arrow_up
-                    : Icons.keyboard_arrow_down,
-                color: Colors.grey[400],
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: _kDark),
+                    ),
+                    if (!isTips && places.isNotEmpty)
+                      Text(
+                        '${places.length} place${places.length == 1 ? '' : 's'} · ${route.length} stop${route.length == 1 ? '' : 's'}',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey[500]),
+                      ),
+                  ],
+                ),
+              ),
+              AnimatedRotation(
+                turns: isExpanded ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: isExpanded ? _kBlue : Colors.grey[400],
+                ),
               ),
             ]),
           ),
         ),
 
-        // Expanded body
-        if (isExpanded)
-          Padding(
-            padding:
-                const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        // ── Expanded body ──────────────────────────────────────────
+        if (isExpanded) ...[
+          Container(height: 1, color: _kBlue.withValues(alpha: 0.12)),
+          Container(
+            color: const Color(0xFFF8FAFF),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
             child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Divider(height: 1),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Content (tips) or notes (day)
+                if (content.isNotEmpty) ...[
+                  Text(content,
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                          height: 1.55)),
                   const SizedBox(height: 12),
-
-                  // Tips content or day notes
-                  if (content.isNotEmpty) ...[
-                    Text(content,
-                        style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                            height: 1.5)),
-                    const SizedBox(height: 10),
-                  ],
-                  if (notes.isNotEmpty) ...[
-                    Text('Notes',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: Colors.grey[700])),
-                    const SizedBox(height: 4),
-                    Text(notes,
+                ],
+                if (notes.isNotEmpty) ...[
+                  _BodyLabel(
+                      icon: Icons.notes_rounded, label: 'Notes'),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE4F0FF)),
+                    ),
+                    child: Text(notes,
                         style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[600],
                             height: 1.5)),
-                    const SizedBox(height: 10),
-                  ],
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
-                  // Places
-                  if (places.isNotEmpty) ...[
-                    const Text('Places',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13)),
-                    const SizedBox(height: 8),
-                    ...places.map((p) => _PlaceRow(place: p)),
-                  ],
+                // Places
+                if (places.isNotEmpty) ...[
+                  _BodyLabel(
+                      icon: Icons.place_rounded,
+                      label: 'Places (${places.length})'),
+                  const SizedBox(height: 8),
+                  ...places.map((p) => _PlaceRow(place: p)),
+                ],
 
-                  // Route
-                  if (route.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    const Text('Route',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    ...route.asMap().entries.map((e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(children: [
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: Colors.blue[600],
-                                shape: BoxShape.circle,
+                // Route
+                if (route.isNotEmpty) ...[
+                  if (places.isNotEmpty) const SizedBox(height: 10),
+                  _BodyLabel(
+                      icon: Icons.alt_route_rounded,
+                      label: 'Route (${route.length} stops)'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE4F0FF)),
+                    ),
+                    child: Column(
+                      children:
+                          route.asMap().entries.map((e) {
+                        final isLast = e.key == route.length - 1;
+                        return Row(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Column(children: [
+                              Container(
+                                width: 26,
+                                height: 26,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [_kBlue, _kCyan],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text('${e.key + 1}',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold)),
+                                ),
                               ),
-                              child: Center(
-                                child: Text('${e.key + 1}',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
+                              if (!isLast)
+                                Container(
+                                  width: 2,
+                                  height: 20,
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _kBlue.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(1),
+                                  ),
+                                ),
+                            ]),
+                            const SizedBox(width: 10),
                             Expanded(
-                              child: Text(
-                                _routeLabel(e.value),
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[700]),
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                    top: 4,
+                                    bottom: isLast ? 0 : 16),
+                                child: Text(_routeLabel(e.value),
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[700])),
                               ),
                             ),
-                          ]),
-                        )),
-                  ],
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
 
-                  // List items (for tips sections)
-                  if (listItems.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    ...listItems.map((item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('• ',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                Expanded(
-                                    child: Text(_itemLabel(item),
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[700]))),
-                              ]),
-                        )),
-                  ],
-                ]),
+                // List items
+                if (listItems.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _BodyLabel(
+                      icon: Icons.checklist_rounded,
+                      label: 'Checklist (${listItems.length})'),
+                  const SizedBox(height: 8),
+                  ...listItems.map((item) {
+                    final isChecklist =
+                        (item is Map ? item['type'] : null) ==
+                            'checklist';
+                    final checked =
+                        item is Map ? (item['checked'] as bool? ?? false) : false;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: Row(children: [
+                        if (isChecklist)
+                          Icon(
+                            checked
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            size: 18,
+                            color: checked
+                                ? _kBlue
+                                : Colors.grey[350],
+                          )
+                        else
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                  colors: [_kBlue, _kCyan]),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _itemLabel(item),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: checked
+                                  ? Colors.grey[400]
+                                  : Colors.grey[700],
+                              decoration: checked
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ]),
+                    );
+                  }),
+                ],
+              ],
+            ),
           ),
+        ],
       ]),
     );
   }
+}
 
-  List<dynamic> _asList(dynamic val) {
-    if (val is List) return val;
-    return [];
-  }
+// ── Section body label ────────────────────────────────────────────────────────
 
-  String _routeLabel(dynamic r) {
-    if (r is Map) return r['name']?.toString() ?? r.toString();
-    return r.toString();
-  }
+class _BodyLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _BodyLabel({required this.icon, required this.label});
 
-  String _itemLabel(dynamic item) {
-    if (item is Map) return item['text']?.toString() ?? item.toString();
-    return item.toString();
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          gradient:
+              const LinearGradient(colors: [_kBlue, _kCyan]),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Icon(icon, size: 12, color: Colors.white),
+      ),
+      const SizedBox(width: 7),
+      Text(label,
+          style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _kDarkBlue)),
+    ]);
   }
 }
 
-// ── Place row ──────────────────────────────────────────────────────────────
+// ── Place row ─────────────────────────────────────────────────────────────────
 
 class _PlaceRow extends StatelessWidget {
   final dynamic place;
@@ -672,72 +949,253 @@ class _PlaceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = place is Map
-        ? (place['name'] ?? place['placeName'] ?? 'Unknown place').toString()
+        ? (place['name'] ?? place['placeName'] ?? 'Unknown')
+            .toString()
         : place.toString();
     final address =
         place is Map ? (place['address'] ?? '').toString() : '';
-    final imageUrl =
-        place is Map ? (place['photoUrl'] ?? place['image'] ?? '').toString() : '';
+    final description =
+        place is Map ? (place['description'] ?? '').toString() : '';
+    final imageUrl = place is Map
+        ? (place['photoUrl'] ?? place['image'] ?? '').toString()
+        : '';
+    final category =
+        place is Map ? (place['category'] ?? 'other').toString() : 'other';
+    final catMeta = _categories.firstWhere(
+      (c) => c.value == category,
+      orElse: () => _categories.last,
+    );
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: imageUrl.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => _PlaceholderBox(),
-                )
-              : _PlaceholderBox(),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-            child: Column(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4F0FF)),
+        boxShadow: [
+          BoxShadow(
+            color: _kBlue.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          // Category left bar
+          Container(
+            width: 4,
+            decoration: BoxDecoration(
+              color: catMeta.color,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(14),
+                bottomLeft: Radius.circular(14),
+              ),
+            ),
+          ),
+          // Thumbnail
+          if (imageUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                width: 64,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => _PlaceholderThumb(),
+              ),
+            ),
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              Text(name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w500, fontSize: 13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-              if (address.isNotEmpty)
-                Text(address,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-            ])),
-      ]),
+                  Row(children: [
+                    Icon(catMeta.icon, size: 13, color: catMeta.color),
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: catMeta.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(catMeta.label,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: catMeta.color,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: _kDark),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(description,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey[500]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ] else if (address.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(address,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey[500]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
 
-class _PlaceholderBox extends StatelessWidget {
+class _PlaceholderThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8)),
-        child: Icon(Icons.place_outlined, color: Colors.grey[400], size: 22),
+        width: 64,
+        color: const Color(0xFFEFF6FF),
+        child: const Icon(Icons.place_outlined, color: _kBlue, size: 22),
       );
 }
 
-// ── Comment tile ───────────────────────────────────────────────────────────
+// ── Comment input bar ─────────────────────────────────────────────────────────
+
+class _CommentInputBar extends StatelessWidget {
+  final dynamic auth;
+  final TextEditingController controller;
+  final bool submitting;
+  final VoidCallback onSubmit;
+  final VoidCallback onLoginTap;
+
+  const _CommentInputBar({
+    required this.auth,
+    required this.controller,
+    required this.submitting,
+    required this.onSubmit,
+    required this.onLoginTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: const Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: auth.isAuthenticated
+              ? Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      maxLines: null,
+                      style: const TextStyle(fontSize: 14, color: _kDark),
+                      decoration: InputDecoration(
+                        hintText: 'Write a comment...',
+                        hintStyle: TextStyle(
+                            color: Colors.grey[400], fontSize: 13),
+                        filled: true,
+                        fillColor: _kInputFill,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide:
+                              const BorderSide(color: _kInputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide:
+                              const BorderSide(color: _kInputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(
+                              color: _kBlue, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: submitting ? null : onSubmit,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        gradient: submitting
+                            ? null
+                            : const LinearGradient(
+                                colors: [_kBlue, _kCyan]),
+                        color: submitting ? Colors.grey[200] : null,
+                        shape: BoxShape.circle,
+                      ),
+                      child: submitting
+                          ? const Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: _kBlue),
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded,
+                              color: Colors.white, size: 18),
+                    ),
+                  ),
+                ])
+              : SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onLoginTap,
+                    icon: const Icon(Icons.login_rounded, size: 18),
+                    label: const Text('Login to leave a comment'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _kBlue,
+                      side: const BorderSide(color: _kBlue),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Comment tile ──────────────────────────────────────────────────────────────
 
 class _CommentTile extends StatelessWidget {
   final CommentModel comment;
-  final bool isOwner;
-  final bool isEditing;
+  final bool isOwner, isEditing;
   final TextEditingController editCtrl;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onSaveEdit;
-  final VoidCallback onCancelEdit;
+  final VoidCallback onEdit, onDelete, onSaveEdit, onCancelEdit;
 
   const _CommentTile({
     required this.comment,
@@ -752,66 +1210,140 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Avatar
         CircleAvatar(
-          radius: 16,
-          backgroundImage: (comment.user.profilePicture?.isNotEmpty ?? false)
-              ? NetworkImage(comment.user.profilePicture!)
-              : null,
-          backgroundColor: Colors.blue[100],
+          radius: 18,
+          backgroundColor: _kBlue.withValues(alpha: 0.15),
+          backgroundImage:
+              (comment.user.profilePicture?.isNotEmpty ?? false)
+                  ? NetworkImage(comment.user.profilePicture!)
+                  : null,
           child: (comment.user.profilePicture?.isEmpty ?? true)
               ? Text(
                   comment.user.username.isNotEmpty
                       ? comment.user.username[0].toUpperCase()
                       : '?',
                   style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.bold))
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: _kBlue))
               : null,
         ),
         const SizedBox(width: 10),
         Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(children: [
                 Text('@${comment.user.username}',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13)),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: _kDark)),
                 const Spacer(),
                 if (isOwner) ...[
                   GestureDetector(
-                      onTap: onEdit,
+                    onTap: onEdit,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: _kBlue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
                       child: Icon(Icons.edit_outlined,
-                          size: 16, color: Colors.blue[400])),
-                  const SizedBox(width: 8),
+                          size: 13, color: _kBlue),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
                   GestureDetector(
-                      onTap: onDelete,
-                      child: Icon(Icons.delete_outline,
-                          size: 16, color: Colors.red[400])),
+                    onTap: onDelete,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: const Icon(Icons.delete_outline,
+                          size: 13, color: Color(0xFFDC2626)),
+                    ),
+                  ),
                 ],
               ]),
+              const SizedBox(height: 4),
               if (isEditing) ...[
-                const SizedBox(height: 4),
                 TextField(
                   controller: editCtrl,
-                  decoration: const InputDecoration(
-                      isDense: true, border: OutlineInputBorder()),
                   autofocus: true,
+                  style: const TextStyle(fontSize: 13, color: _kDark),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: true,
+                    fillColor: _kInputFill,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: _kInputBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: _kBlue, width: 1.5),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Row(children: [
-                  TextButton(onPressed: onSaveEdit, child: const Text('Save')),
                   TextButton(
-                      onPressed: onCancelEdit, child: const Text('Cancel')),
+                    onPressed: onSaveEdit,
+                    style: TextButton.styleFrom(
+                      foregroundColor: _kBlue,
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Save',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(width: 12),
+                  TextButton(
+                    onPressed: onCancelEdit,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey,
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Cancel'),
+                  ),
                 ]),
               ] else ...[
-                const SizedBox(height: 4),
                 Text(comment.content,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.4)),
               ],
-            ])),
+            ],
+          ),
+        ),
       ]),
     );
   }

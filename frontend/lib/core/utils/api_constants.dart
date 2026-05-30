@@ -1,4 +1,4 @@
-// lib/core/utils/api_constants.dart
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // Change BASE_URL to point at your running backend.
 //
@@ -10,7 +10,7 @@
 
 class ApiConstants {
   // ⬇️  Edit this line before running the app
-  static const String baseUrl = 'http://192.168.1.3:8000/api';
+  static final String baseUrl = dotenv.get('DEV_BASE_URL', fallback: '');
 
   // Auth
   static const String login = '/users/login';
