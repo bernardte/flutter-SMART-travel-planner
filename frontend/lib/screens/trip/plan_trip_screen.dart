@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import '../../providers/trip_provider.dart';
 import '../../models/trip_model.dart';
 import '../../core/utils/snackbar.dart';
+import '../../core/utils/cached_tile_provider.dart';
 
 const _kBlue = Color(0xFF3B82F6);
 const _kCyan = Color(0xFF06B6D4);
@@ -27,19 +28,21 @@ class PlanTripScreen extends ConsumerStatefulWidget {
   ConsumerState<PlanTripScreen> createState() => _PlanTripScreenState();
 }
 
-class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
+class _PlanTripScreenState extends ConsumerState<PlanTripScreen>
+    with TickerProviderStateMixin {
   final _countryCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _mapController = MapController();
   final _locationFocusNode = FocusNode();
   final _sheetController = DraggableScrollableController();
 
+  AnimationController? _mapAnim;
+
   String _startDate = '';
   String _endDate = '';
   List<DayModel> _itinerary = [];
   String? _activeDate;
-  LatLng _mapCenter = const LatLng(20, 0);
-  double _mapZoom = 2;
+
   bool _isAddingLocation = false;
   bool _isSaving = false;
 
@@ -49,7 +52,45 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
     _locationCtrl.dispose();
     _locationFocusNode.dispose();
     _sheetController.dispose();
+    _mapAnim?.dispose();
     super.dispose();
+  }
+
+  void _animateTo(LatLng target, double zoom) {
+    _mapAnim?.dispose();
+
+    LatLng startCenter;
+    double startZoom;
+    try {
+      startCenter = _mapController.camera.center;
+      startZoom = _mapController.camera.zoom;
+    } catch (_) {
+      // Controller not yet attached — fall back to instant move.
+      _mapController.move(target, zoom);
+      return;
+    }
+
+    _mapAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    final curved =
+        CurvedAnimation(parent: _mapAnim!, curve: Curves.easeInOutCubic);
+    final latTween =
+        Tween<double>(begin: startCenter.latitude, end: target.latitude);
+    final lngTween =
+        Tween<double>(begin: startCenter.longitude, end: target.longitude);
+    final zoomTween = Tween<double>(begin: startZoom, end: zoom);
+
+    _mapAnim!.addListener(() {
+      _mapController.move(
+        LatLng(latTween.evaluate(curved), lngTween.evaluate(curved)),
+        zoomTween.evaluate(curved),
+      );
+    });
+
+    _mapAnim!.forward();
   }
 
   List<String> _generateDateRange(String start, String end) {
@@ -121,11 +162,11 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
         }
         return d;
       }).toList();
-      _mapCenter = coords;
-      _mapZoom = 13;
       _locationCtrl.clear();
       _isAddingLocation = false;
     });
+
+    _animateTo(coords, 13);
   }
 
   void _removeLocation(String locId) {
@@ -258,20 +299,39 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Full-screen map
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _mapCenter,
-              initialZoom: _mapZoom,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.smart_travel_planner',
+          // Full-screen map — RepaintBoundary prevents repaints on every setState
+          RepaintBoundary(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: const MapOptions(
+                initialCenter: LatLng(20, 0),
+                initialZoom: 2,
+                backgroundColor: Color(0xFFECEFF1),
               ),
-              MarkerLayer(markers: _markers),
-            ],
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.smart_travel_planner',
+                  tileProvider: CachedTileProvider(),
+                  keepBuffer: 4,
+                  panBuffer: 1,
+                  maxNativeZoom: 19,
+                ),
+                MarkerLayer(markers: _markers),
+              ],
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 16,
+            child: _MapPillButton(
+              icon: Icons.arrow_back_rounded,
+              label: 'Back',
+              onTap: () => context.canPop()
+                  ? context.pop()
+                  : context.go('/dashboard'),
+            ),
           ),
           // Draggable bottom sheet
           DraggableScrollableSheet(
@@ -384,7 +444,7 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
                               ),
                               const SizedBox(height: 10),
                               SizedBox(
-                                height: 77,
+                                height: 80,
                                 child: ListView.separated(
                                   scrollDirection: Axis.horizontal,
                                   itemCount: _itinerary.length,
@@ -599,17 +659,6 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () => context.go('/dashboard'),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close, size: 18, color: _kDark),
-            ),
-          ),
         ],
       ),
     );
@@ -815,6 +864,59 @@ class _DateCard extends StatelessWidget {
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
   }
 }
+
+
+// ── Map overlay pill button ───────────────────────────────────────────────────
+class _MapPillButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _MapPillButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = color ?? const Color(0xFF1F2937);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: bg.withAlpha(220),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(60),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _DurationChip extends StatelessWidget {
   final String start;

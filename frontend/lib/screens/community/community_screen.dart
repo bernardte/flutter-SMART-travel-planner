@@ -301,30 +301,21 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
           ],
         ),
       ),
-      floatingActionButton: (auth.isAuthenticated && posts.isNotEmpty)
+        floatingActionButton: (auth.isAuthenticated && posts.isNotEmpty)
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/post'),
               icon: const Icon(Icons.add, size: 20),
               label: const Text(
                 'Share Guide',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
-                ),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3),
               ),
-              backgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: const Color(0xFF3B82F6),
               foregroundColor: Colors.white,
-              elevation: 0,
-              highlightElevation: 4,
-              shape: const ContinuousRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(40)),
-              ),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              extendedPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              extendedIconLabelSpacing: 12,
-              clipBehavior: Clip.antiAlias,
+              elevation: 2,
+              shape: const StadiumBorder(),
             )
           : null,
     );
