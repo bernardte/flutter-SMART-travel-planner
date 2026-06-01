@@ -125,7 +125,7 @@ class GuideCard extends StatelessWidget {
                               : null,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
+                        children: [
                               _AuthorAvatar(
                                 name: guide.author!.name,
                                 pictureUrl: guide.author!.profilePicture,
@@ -133,14 +133,10 @@ class GuideCard extends StatelessWidget {
                               const SizedBox(width: 5),
                               Text(
                                 '@${guide.author!.username}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 11,
-                                  color: onAuthorTap != null
-                                      ? const Color(0xFF3B82F6)
-                                      : Colors.grey[600],
-                                  fontWeight: onAuthorTap != null
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
+                                  color: Color(0xFF3B82F6),
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
