@@ -249,6 +249,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                                     isLiked: guide.isLiked,
                                     isSaved: guide.isSaved,
                                     isOwner: isOwner,
+                                    isAuthenticate: auth.isAuthenticated,
                                     onTap: () {
                                       if (itinId != null) {
                                         context.push(
@@ -289,6 +290,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                                             ? () => _toggleFollow(
                                                 guide.author!.id)
                                             : () => context.go('/auth')
+                                        : null,
+                                    onAuthorTap: guide.author != null
+                                        ? () => context.push(
+                                            '/profile/${guide.author!.username}')
                                         : null,
                                   ),
                                 ),

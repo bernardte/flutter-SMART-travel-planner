@@ -2,6 +2,7 @@
 // Mirrors TravelGuide from interface.type.ts
 
 import 'user_model.dart';
+import '../core/utils/api_constants.dart';
 
 // Returns a PostUserSummary only when [raw] is a populated Map.
 // When the API returns an unpopulated ObjectId String, returns null
@@ -58,11 +59,13 @@ class TravelGuideModel {
         title: json['title'] ?? '',
         description: json['description'] ?? '',
         country: json['country'] ?? '',
-        thumbnailImage: json['thumbnailImage'] ?? '',
+        thumbnailImage: ApiConstants.normalizeImageUrl(json['thumbnailImage'] ?? ''),
         postSavedByUser: List<String>.from(json['postSavedByUser'] ?? []),
         // API uses "viewsBy" (plural), model field kept as "viewBy" for compat.
         viewBy: List<String>.from(json['viewBy'] ?? json['viewsBy'] ?? []),
-        imagePreviews: List<String>.from(json['imagePreviews'] ?? []),
+        imagePreviews: (json['imagePreviews'] as List? ?? [])
+            .map((u) => ApiConstants.normalizeImageUrl(u.toString()))
+            .toList(),
         // author/authorId may be a populated Map OR an unpopulated ObjectId
         // String. Only parse it when it is actually a Map.
         author: _parseAuthor(json['author'] ?? json['authorId']),
@@ -133,7 +136,7 @@ class PopularDestinationModel {
     final topGuide = json['topGuide'] ?? {};
     return PopularDestinationModel(
       country: json['country'] ?? '',
-      thumbnailImage: topGuide['thumbnailImage'] ?? '',
+      thumbnailImage: ApiConstants.normalizeImageUrl(topGuide['thumbnailImage'] ?? ''),
       description: topGuide['description'] ?? '',
       guideId: topGuide['_id'] ?? '',
     );

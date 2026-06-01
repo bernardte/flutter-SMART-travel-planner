@@ -12,6 +12,54 @@ class ApiConstants {
   // ⬇️  Edit this line before running the app
   static final String baseUrl = dotenv.get('DEV_BASE_URL', fallback: '');
 
+  // Derives the server origin (scheme + host + port) from baseUrl,
+  // stripping the /api suffix so image paths can be resolved correctly.
+  static String get _serverOrigin {
+    final uri = Uri.tryParse(baseUrl);
+    if (uri == null) return '';
+    return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+  }
+
+  // Normalizes an image URL returned by the backend so it is always a fully
+  // qualified URL reachable from the current device/emulator:
+  //  • Relative paths  → prepend server origin
+  //  • localhost / 127.0.0.1 → replace with the real server host from baseUrl
+  //  • Cloudinary URLs → inject f_auto,q_auto to avoid progressive-JPEG decode
+  //    failures on Android emulators (FlutterImageDecoderImplDefault rejects
+  //    progressive JPEGs; f_auto lets Cloudinary serve a compatible format).
+  static String normalizeImageUrl(String url) {
+    if (url.isEmpty) return url;
+    // Relative path — turn it into a full URL using the server origin.
+    if (!url.startsWith('http')) {
+      final origin = _serverOrigin;
+      final path = url.startsWith('/') ? url : '/$url';
+      return '$origin$path';
+    }
+    // Absolute URL with localhost / loopback — replace host so the
+    // Android emulator (and other non-local devices) can reach the server.
+    final origin = _serverOrigin;
+    if (origin.isNotEmpty) {
+      url = url
+          .replaceFirst(RegExp(r'http://localhost(:\d+)?'), origin)
+          .replaceFirst(RegExp(r'http://127\.0\.0\.1(:\d+)?'), origin);
+    }
+    // Cloudinary: insert transformation after /upload/ if not already present.
+    url = _cloudinaryTransform(url);
+    return url;
+  }
+
+  // Injects f_auto,q_auto into a Cloudinary URL so the CDN delivers a format
+  // that Android's ImageDecoder can handle (avoids progressive-JPEG failures).
+  static String _cloudinaryTransform(String url) {
+    const marker = '/upload/';
+    final idx = url.indexOf(marker);
+    if (idx == -1 || !url.contains('res.cloudinary.com')) return url;
+    final afterUpload = url.substring(idx + marker.length);
+    // Skip if transformations are already present (starts with a Cloudinary param).
+    if (RegExp(r'^[a-z_]+[_=]').hasMatch(afterUpload)) return url;
+    return url.replaceFirst(marker, '${marker}f_auto,q_auto/');
+  }
+
   // Auth
   static const String login = '/users/login';
   static const String register = '/users/register-account';

@@ -16,6 +16,7 @@ class GuideCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final bool showActions;
   final bool isOwner;
+  final bool? isAuthenticate;
 
   // Follow/unfollow
   final bool isFollowing;
@@ -23,6 +24,9 @@ class GuideCard extends StatelessWidget {
   // null → hide button (owner / no author)
   // non-null → show button, calls this on tap
   final VoidCallback? onFollowToggle;
+
+  // null → avatar/username not tappable
+  final VoidCallback? onAuthorTap;
 
   const GuideCard({
     super.key,
@@ -37,9 +41,11 @@ class GuideCard extends StatelessWidget {
     this.onEdit,
     this.showActions = true,
     this.isOwner = false,
+    this.isAuthenticate = false,
     this.isFollowing = false,
     this.isFollowLoading = false,
     this.onFollowToggle,
+    this.onAuthorTap,
   });
 
   @override
@@ -60,18 +66,22 @@ class GuideCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: guide.thumbnailImage,
                       fit: BoxFit.cover,
+                      httpHeaders: const {'User-Agent': 'Flutter'},
                       placeholder: (_, __) => Container(
                         color: Colors.grey[100],
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey[100],
-                        child: const Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey),
-                      ),
+                      errorWidget: (_, url, error) {
+                        debugPrint('Thumbnail load failed: $url\nError: $error');
+                        return Container(
+                          color: Colors.grey[100],
+                          child: const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey),
+                        );
+                      },
                     )
                   : Container(
                       color: Colors.blue[50],
@@ -109,13 +119,35 @@ class GuideCard extends StatelessWidget {
                       ),
                       const Spacer(),
                       if (guide.author != null) ...[
-                        Text(
-                          '@${guide.author!.username}',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey[600]),
+                        GestureDetector(
+                          onTap: isAuthenticate != false && onAuthorTap != null
+                              ? onAuthorTap
+                              : null,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _AuthorAvatar(
+                                name: guide.author!.name,
+                                pictureUrl: guide.author!.profilePicture,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '@${guide.author!.username}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: onAuthorTap != null
+                                      ? const Color(0xFF3B82F6)
+                                      : Colors.grey[600],
+                                  fontWeight: onAuthorTap != null
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         // Follow button — only shown to non-owners
-                        if (onFollowToggle != null) ...[
+                        if (onFollowToggle != null && isAuthenticate != false) ...[
                           const SizedBox(width: 8),
                           _FollowButton(
                             isFollowing: isFollowing,
@@ -229,6 +261,25 @@ class GuideCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── Author avatar ─────────────────────────────────────────────────────────────
+
+class _AuthorAvatar extends StatelessWidget {
+  final String name;
+  final String pictureUrl;
+  const _AuthorAvatar({required this.name, required this.pictureUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final ImageProvider image = pictureUrl.isNotEmpty
+        ? CachedNetworkImageProvider(pictureUrl)
+        : NetworkImage(
+            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=3b82f6&color=fff&size=64',
+          ) as ImageProvider;
+
+    return CircleAvatar(radius: 12, backgroundImage: image);
   }
 }
 
