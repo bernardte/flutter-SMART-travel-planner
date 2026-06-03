@@ -26,7 +26,7 @@ class GuideCard extends StatelessWidget {
   final VoidCallback? onFollowToggle;
 
   // null → avatar/username not tappable
-  final VoidCallback? onAuthorTap;
+  final VoidCallback onAuthorTap;
 
   const GuideCard({
     super.key,
@@ -45,7 +45,7 @@ class GuideCard extends StatelessWidget {
     this.isFollowing = false,
     this.isFollowLoading = false,
     this.onFollowToggle,
-    this.onAuthorTap,
+    required this.onAuthorTap,
   });
 
   @override

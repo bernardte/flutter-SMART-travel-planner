@@ -215,6 +215,9 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
                     authorAvatar: authorAvatar,
                     authorIntro: authorIntro,
                     commentCount: _comments.length,
+                    onAuthorTap: authorName.isNotEmpty
+                        ? () => context.push('/profile/$authorName')
+                        : null,
                   ),
                 ),
 
@@ -452,6 +455,7 @@ class _HeroHeader extends StatelessWidget {
   final Map<String, dynamic> plan;
   final String authorName, authorAvatar, authorIntro;
   final int commentCount;
+  final VoidCallback? onAuthorTap;
 
   const _HeroHeader({
     required this.plan,
@@ -459,6 +463,7 @@ class _HeroHeader extends StatelessWidget {
     required this.authorAvatar,
     required this.authorIntro,
     required this.commentCount,
+    this.onAuthorTap,
   });
 
   @override
@@ -512,7 +517,9 @@ class _HeroHeader extends StatelessWidget {
 
         // Author row
         if (authorName.isNotEmpty) ...[
-          Row(children: [
+          GestureDetector(
+            onTap: onAuthorTap,
+            child: Row(children: [
             CircleAvatar(
               radius: 22,
               backgroundColor: _kBlue.withValues(alpha: 0.15),
@@ -537,10 +544,10 @@ class _HeroHeader extends StatelessWidget {
                   children: [
                 Text(
                   '@$authorName',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: _kDark),
+                      color: onAuthorTap != null ? _kBlue : _kDark),
                 ),
                 if (authorIntro.isNotEmpty)
                   Text(
@@ -553,6 +560,7 @@ class _HeroHeader extends StatelessWidget {
               ]),
             ),
           ]),
+          ),
           const SizedBox(height: 14),
         ],
 

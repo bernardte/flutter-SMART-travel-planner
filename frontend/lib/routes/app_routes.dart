@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/landing/landing_screen.dart';
@@ -62,14 +61,14 @@ final GoRouter appRouter = GoRouter(
           path: '/post',
           builder: (context, state) => const PostScreen(),
         ),
-        GoRoute(
-          path: '/profile/:username',
-          builder: (context, state) {
-            final username = state.pathParameters['username']!;
-            return ProfileScreen(username: username);
-          },
-        ),
       ],
+    ),
+    GoRoute(
+      path: '/profile/:username',
+      builder: (context, state) {
+        final username = state.pathParameters['username']!;
+        return ProfileScreen(username: username);
+      },
     ),
     GoRoute(
       path: '/splash',

@@ -312,6 +312,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 likedCount: guide.likes,
                                 isLiked: guide.isLiked,
                                 isSaved: guide.isSaved,
+                                isAuthenticate: auth.isAuthenticated,
                                 onTap: () => context.go(
                                     '/trip-plan/view/${guide.itinerary?['_id']}'),
                                 onLike: () => ref
@@ -320,6 +321,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 onSave: () => ref
                                     .read(communityProvider.notifier)
                                     .toggleSave(guide.id),
+                                onAuthorTap: () {
+                                  if (guide.author != null) {
+                                    context.push(
+                                        '/profile/${guide.author!.username}');
+                                  }
+                                },
                               ),
                               if (guide.privacy == 'private')
                                 const Positioned(
@@ -410,6 +417,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             likedCount: guide.likes,
                             isLiked: guide.isLiked,
                             isSaved: guide.isSaved,
+                            isAuthenticate: auth.isAuthenticated,
                             onTap: () => context.go(
                                 '/trip-plan/view/${guide.itinerary?['_id']}'),
                             onLike: () => ref
@@ -418,6 +426,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             onSave: () => ref
                                 .read(communityProvider.notifier)
                                 .toggleSave(guide.id),
+                            onAuthorTap: () {
+                              if (guide.author != null) {
+                                context
+                                    .push('/profile/${guide.author!.username}');
+                              }
+                            },
                           ),
                         ),
                       );
@@ -453,7 +467,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           const SizedBox(width: 12),
           const Text(
-            'TravelBuddy',
+            'TravelLOG',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,

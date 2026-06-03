@@ -88,6 +88,7 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
                                         isLiked: guide.isLiked,
                                         isSaved: guide.isSaved,
                                         likedCount: guide.likes,
+                                        isAuthenticate: true,
                                         onTap: () {
                                           if (itinId != null) {
                                             context.go('/trip-plan/view/$itinId');
@@ -113,6 +114,13 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
                                               .toggleSave(guide.id);
                                           setState(() => _saved
                                               .removeWhere((g) => g.id == guide.id));
+                                        },
+
+                                        onAuthorTap: () {
+                                          if (guide.author != null) {
+                                            context.push(
+                                                '/profile/${guide.author!.username}');
+                                          }
                                         },
                                       ),
                                     ),

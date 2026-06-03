@@ -291,10 +291,12 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                                                 guide.author!.id)
                                             : () => context.go('/auth')
                                         : null,
-                                    onAuthorTap: guide.author != null
-                                        ? () => context.push(
-                                            '/profile/${guide.author!.username}')
-                                        : null,
+                                    onAuthorTap: () {
+                                      if (guide.author != null) {
+                                        context.push(
+                                            '/profile/${guide.author!.username}');
+                                      }
+                                    },
                                   ),
                                 ),
                               );
