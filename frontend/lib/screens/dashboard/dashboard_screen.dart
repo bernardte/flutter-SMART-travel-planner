@@ -453,7 +453,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           const SizedBox(width: 12),
           const Text(
-            'TravelBuddy',
+            'TravelLOG',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,

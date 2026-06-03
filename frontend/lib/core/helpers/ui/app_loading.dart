@@ -301,11 +301,11 @@ class _LoadingWidgetState extends State<_LoadingWidget>
 
 // ==================== 使用示例 ====================
 /*
-class TravelBuddyHomePage extends StatelessWidget {
+class TravelLOGHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('TravelBuddy')),
+      appBar: AppBar(title: Text('TravelLOG')),
       body: Center(
         child: ElevatedButton(
           onPressed: () async {
