@@ -1,5 +1,4 @@
 import 'package:go_router/go_router.dart';
-
 import '../screens/landing/landing_screen.dart';
 import '../screens/auth/auth_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
