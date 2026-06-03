@@ -1,5 +1,3 @@
-// lib/widgets/card/guide_card.dart
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/travel_guide_model.dart';
@@ -269,13 +267,22 @@ class _AuthorAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ImageProvider image = pictureUrl.isNotEmpty
-        ? CachedNetworkImageProvider(pictureUrl)
-        : NetworkImage(
-            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=3b82f6&color=fff&size=64',
-          ) as ImageProvider;
-
-    return CircleAvatar(radius: 12, backgroundImage: image);
+    if (pictureUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 12,
+        backgroundImage: CachedNetworkImageProvider(pictureUrl),
+      );
+    }
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 12,
+      backgroundColor: const Color(0xFF3B82F6),
+      child: Text(
+        initial,
+        style: const TextStyle(
+            fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 }
 

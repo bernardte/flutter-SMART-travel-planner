@@ -272,9 +272,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
                                         ? () => _confirmDelete(
                                             context, guide.id)
                                         : null,
-                                    onEdit: isOwner && itinId != null
+                                    onEdit: isOwner
                                         ? () => context.push(
-                                            '/edit-travel-guide/$itinId')
+                                            '/edit-post/${guide.id}',
+                                            extra: guide)
                                         : null,
                                     // Follow / unfollow the post's author
                                     isFollowing: guide.author != null

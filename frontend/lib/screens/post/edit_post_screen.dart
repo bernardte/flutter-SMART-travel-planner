@@ -1,36 +1,38 @@
-// lib/screens/post/post_screen.dart
+// lib/screens/post/edit_post_screen.dart
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../models/travel_guide_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/community_provider.dart';
 import '../../repositories/community_repository.dart';
 import '../../core/utils/snackbar.dart';
 
-class PostScreen extends ConsumerStatefulWidget {
-  const PostScreen({super.key});
+class EditPostScreen extends ConsumerStatefulWidget {
+  final TravelGuideModel guide;
+  const EditPostScreen({super.key, required this.guide});
 
   @override
-  ConsumerState<PostScreen> createState() => _PostScreenState();
+  ConsumerState<EditPostScreen> createState() => _EditPostScreenState();
 }
 
-class _PostScreenState extends ConsumerState<PostScreen> {
+class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _countryCtrl = TextEditingController();
-  final _tagCtrl = TextEditingController();
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _countryCtrl;
+  final TextEditingController _tagCtrl = TextEditingController();
 
-  File? _image;
-  String _privacy = 'public';
-  List<String> _tags = [];
+  File? _newImage;
+  late String _privacy;
+  late List<String> _tags;
   List<Map<String, dynamic>> _itineraries = [];
   String? _selectedItineraryId;
-  bool _saving = false;
   bool _loadingItineraries = true;
+  bool _saving = false;
   int _uploadProgress = 0;
 
   static const _blue = Color(0xFF3B82F6);
@@ -41,16 +43,13 @@ class _PostScreenState extends ConsumerState<PostScreen> {
   @override
   void initState() {
     super.initState();
+    _titleCtrl = TextEditingController(text: widget.guide.title);
+    _descCtrl = TextEditingController(text: widget.guide.description);
+    _countryCtrl = TextEditingController(text: widget.guide.country);
+    _privacy = widget.guide.privacy;
+    _tags = List<String>.from(widget.guide.tags);
+    _selectedItineraryId = widget.guide.itinerary?['_id'] as String?;
     _loadItineraries();
-  }
-
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _descCtrl.dispose();
-    _countryCtrl.dispose();
-    _tagCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _loadItineraries() async {
@@ -71,10 +70,19 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _countryCtrl.dispose();
+    _tagCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
     final picked = await ImagePicker()
         .pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) setState(() => _image = File(picked.path));
+    if (picked != null) setState(() => _newImage = File(picked.path));
   }
 
   void _addTag() {
@@ -89,29 +97,26 @@ class _PostScreenState extends ConsumerState<PostScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedItineraryId == null) {
-      AppSnackbar.show(context, 'Please select an itinerary');
-      return;
-    }
     setState(() => _saving = true);
     try {
       final repo = ref.read(communityRepositoryProvider);
-      final user = ref.read(authProvider).user!;
-      final guide = await repo.createPost(
+      final updated = await repo.editPost(
+        postId: widget.guide.id,
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         country: _countryCtrl.text.trim(),
         privacy: _privacy,
         tags: _tags,
-        itineraryId: _selectedItineraryId!,
-        authorId: user.id,
-        image: _image,
+        itineraryId: _selectedItineraryId,
+        image: _newImage,
         onProgress: (p) => setState(() => _uploadProgress = p),
       );
-      ref.read(communityProvider.notifier).addPost(guide);
-      AppSnackbar.success(context, 'Post created!');
-      if (mounted) context.go('/community-guide');
+      ref.read(communityProvider.notifier).updatePost(updated);
+      if (!mounted) return;
+      AppSnackbar.success(context, 'Post updated!');
+      context.pop();
     } catch (e) {
+      if (!mounted) return;
       AppSnackbar.error(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -152,8 +157,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 
-  // ── AppBar ──────────────────────────────────────────────────────────────────
-
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Row(
@@ -166,12 +169,11 @@ class _PostScreenState extends ConsumerState<PostScreen> {
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.edit_note_rounded,
-                color: Colors.white, size: 20),
+            child: const Icon(Icons.edit_rounded, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           const Text(
-            'Share a Guide',
+            'Edit Post',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
@@ -195,8 +197,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 
-  // ── Cover image ─────────────────────────────────────────────────────────────
-
   Widget _buildCoverImagePicker() {
     return GestureDetector(
       onTap: _pickImage,
@@ -215,105 +215,94 @@ class _PostScreenState extends ConsumerState<PostScreen> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
-          child: _image != null
-              ? Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.file(_image!, fit: BoxFit.cover),
-                    // Dark overlay + change label
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.45),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 14,
-                      right: 14,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.edit_rounded,
-                                size: 14, color: _blue),
-                            SizedBox(width: 4),
-                            Text(
-                              'Change',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _blue),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(
-                      color: _blue.withValues(alpha: 0.25),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _newImage != null
+                  ? Image.file(_newImage!, fit: BoxFit.cover)
+                  : (widget.guide.thumbnailImage.isNotEmpty
+                      ? Image.network(widget.guide.thumbnailImage,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _placeholderCover())
+                      : _placeholderCover()),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.45),
+                    ],
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                ),
+              ),
+              Positioned(
+                bottom: 14,
+                right: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), Color(0xFF06B6D4)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                            Icons.add_photo_alternate_rounded,
-                            color: Colors.white,
-                            size: 28),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Add Cover Image',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: _navy,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
+                      Icon(Icons.edit_rounded, size: 14, color: _blue),
+                      SizedBox(width: 4),
                       Text(
-                        'Optional — tap to upload from gallery',
+                        'Change',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey[500]),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _blue),
                       ),
                     ],
                   ),
                 ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ── Details card ────────────────────────────────────────────────────────────
+  Widget _placeholderCover() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _blue.withValues(alpha: 0.25), width: 2),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3B82F6), Color(0xFF06B6D4)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.add_photo_alternate_rounded,
+                color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 12),
+          const Text('Change Cover Image',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, fontSize: 15, color: _navy)),
+          const SizedBox(height: 4),
+          Text('Tap to upload from gallery',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        ],
+      ),
+    );
+  }
 
   Widget _buildDetailsCard() {
     return _Card(
@@ -352,8 +341,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 
-  // ── Privacy card ────────────────────────────────────────────────────────────
-
   Widget _buildPrivacyCard() {
     return _Card(
       child: Column(
@@ -390,18 +377,16 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 
-  // ── Itinerary card ──────────────────────────────────────────────────────────
-
   Widget _buildItineraryCard() {
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _SectionHeader(
-              icon: Icons.map_outlined, label: 'Link an Itinerary'),
+              icon: Icons.map_outlined, label: 'Linked Itinerary'),
           const SizedBox(height: 4),
           Text(
-            'Your post must be linked to a planned trip.',
+            'Change the itinerary linked to this post.',
             style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           ),
           const SizedBox(height: 14),
@@ -409,8 +394,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
-                    child:
-                        CircularProgressIndicator(color: _blue, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        color: _blue, strokeWidth: 2),
                   ),
                 )
               : _itineraries.isEmpty
@@ -419,8 +404,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                       decoration: BoxDecoration(
                         color: Colors.orange[50],
                         borderRadius: BorderRadius.circular(14),
-                        border:
-                            Border.all(color: Colors.orange[200]!, width: 1),
+                        border: Border.all(
+                            color: Colors.orange[200]!, width: 1),
                       ),
                       child: Row(
                         children: [
@@ -450,11 +435,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
                         ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              const BorderSide(color: Colors.red, width: 1),
-                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide:
@@ -477,15 +457,11 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                           .toList(),
                       onChanged: (v) =>
                           setState(() => _selectedItineraryId = v),
-                      validator: (v) =>
-                          v == null ? 'Please select an itinerary' : null,
                     ),
         ],
       ),
     );
   }
-
-  // ── Tags card ───────────────────────────────────────────────────────────────
 
   Widget _buildTagsCard() {
     return _Card(
@@ -495,10 +471,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
           const _SectionHeader(
               icon: Icons.label_outline_rounded, label: 'Tags'),
           const SizedBox(height: 4),
-          Text(
-            'Help others discover your guide.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
+          Text('Help others discover your guide.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -519,7 +493,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(40),
-                      borderSide: const BorderSide(color: _blue, width: 1.5),
+                      borderSide:
+                          const BorderSide(color: _blue, width: 1.5),
                     ),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -540,8 +515,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child:
-                      const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                  child: const Icon(Icons.add_rounded,
+                      color: Colors.white, size: 22),
                 ),
               ),
             ],
@@ -565,13 +540,11 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              '#$tag',
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _blue),
-                            ),
+                            Text('#$tag',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _blue)),
                             const SizedBox(width: 6),
                             GestureDetector(
                               onTap: () =>
@@ -590,8 +563,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 
-  // ── Upload progress ─────────────────────────────────────────────────────────
-
   Widget _buildUploadProgress() {
     return _Card(
       child: Column(
@@ -602,16 +573,15 @@ class _PostScreenState extends ConsumerState<PostScreen> {
               const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: _blue),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: _blue),
               ),
               const SizedBox(width: 10),
-              Text(
-                'Uploading... $_uploadProgress%',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: _navy),
-              ),
+              Text('Uploading... $_uploadProgress%',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: _navy)),
             ],
           ),
           const SizedBox(height: 10),
@@ -629,8 +599,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 
-  // ── Submit button ───────────────────────────────────────────────────────────
-
   Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
@@ -639,8 +607,8 @@ class _PostScreenState extends ConsumerState<PostScreen> {
         onPressed: _saving ? null : _submit,
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: _saving ? 0 : 2,
           shadowColor: _blue.withValues(alpha: 0.4),
           backgroundColor: Colors.transparent,
@@ -667,10 +635,11 @@ class _PostScreenState extends ConsumerState<PostScreen> {
                 : const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.send_rounded, size: 18, color: Colors.white),
+                      Icon(Icons.check_rounded,
+                          size: 18, color: Colors.white),
                       SizedBox(width: 8),
                       Text(
-                        'Publish Guide',
+                        'Save Changes',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -686,8 +655,6 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     );
   }
 }
-
-// ── Shared card wrapper ────────────────────────────────────────────────────────
 
 class _Card extends StatelessWidget {
   final Widget child;
@@ -714,8 +681,6 @@ class _Card extends StatelessWidget {
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
-
 class _SectionHeader extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -739,8 +704,6 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
-
-// ── Styled text field ─────────────────────────────────────────────────────────
 
 class _StyledField extends StatelessWidget {
   final TextEditingController controller;
@@ -780,8 +743,7 @@ class _StyledField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -797,8 +759,6 @@ class _StyledField extends StatelessWidget {
     );
   }
 }
-
-// ── Privacy option tile ───────────────────────────────────────────────────────
 
 class _PrivacyOption extends StatelessWidget {
   final String value;
@@ -827,7 +787,8 @@ class _PrivacyOption extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          padding:
+              const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
           decoration: BoxDecoration(
             color: isSelected
                 ? activeColor.withValues(alpha: 0.08)
@@ -859,14 +820,17 @@ class _PrivacyOption extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: isSelected ? activeColor : const Color(0xFF1F2937),
+                  color: isSelected
+                      ? activeColor
+                      : const Color(0xFF1F2937),
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                style:
+                    TextStyle(fontSize: 10, color: Colors.grey[500]),
               ),
               const SizedBox(height: 6),
               Icon(

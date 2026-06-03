@@ -117,6 +117,7 @@ class CommunityNotifier extends StateNotifier<CommunityState> {
 
   void addPost(TravelGuideModel guide) {
     state = state.copyWith(
+      publicPosts: [guide, ...state.publicPosts],
       followersGuides: [guide, ...state.followersGuides],
     );
   }

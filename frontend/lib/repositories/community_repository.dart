@@ -101,6 +101,7 @@ class CommunityRepository {
     required String country,
     required String privacy,
     required List<String> tags,
+    String? itineraryId,
     File? image,
     void Function(int percent)? onProgress,
   }) async {
@@ -111,6 +112,7 @@ class CommunityRepository {
         'country': country,
         'privacy': privacy,
         'tags': '[${tags.map((t) => '"$t"').join(',')}]',
+        if (itineraryId != null) 'itineraryId': itineraryId,
         if (image != null)
           'image': await MultipartFile.fromFile(
             image.path,

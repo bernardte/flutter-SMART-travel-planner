@@ -365,15 +365,25 @@ class _ProfileCard extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.blue[100],
-                backgroundImage: user.profilePicture != null
-                    ? CachedNetworkImageProvider(user.profilePicture!)
-                    : NetworkImage(
-                            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=3b82f6&color=fff&size=128')
-                        as ImageProvider,
-              ),
+              user.profilePicture != null
+                  ? CircleAvatar(
+                      radius: 50,
+                      backgroundImage:
+                          CachedNetworkImageProvider(user.profilePicture!),
+                    )
+                  : CircleAvatar(
+                      radius: 50,
+                      backgroundColor: const Color(0xFF3B82F6),
+                      child: Text(
+                        user.name.isNotEmpty
+                            ? user.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            fontSize: 36,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
               if (user.isVerified)
                 Positioned(
                   bottom: 2,

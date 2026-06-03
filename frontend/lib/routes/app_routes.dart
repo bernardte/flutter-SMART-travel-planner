@@ -14,6 +14,8 @@ import '../screens/trip/edit_trip_screen.dart';
 import '../screens/trip_plan/trip_plan_screen.dart';
 import '../screens/trip_plan/edit_trip_plan_screen.dart';
 import '../screens/trip_plan/view_trip_plan_screen.dart';
+import '../screens/post/edit_post_screen.dart';
+import '../models/travel_guide_model.dart';
 import '../widgets/common/main_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -114,6 +116,13 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final tripPlanId = state.pathParameters['tripPlanId']!;
         return ViewTripPlanScreen(tripPlanId: tripPlanId);
+      },
+    ),
+    GoRoute(
+      path: '/edit-post/:postId',
+      builder: (context, state) {
+        final guide = state.extra as TravelGuideModel;
+        return EditPostScreen(guide: guide);
       },
     ),
     GoRoute(
