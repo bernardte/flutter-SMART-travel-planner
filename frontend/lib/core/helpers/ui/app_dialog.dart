@@ -88,15 +88,15 @@ class _TravelDialog extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 440),
         decoration: BoxDecoration(
           // 旅行风格纸张渐变
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              const Color(0xFFFDFBF7),
-              const Color(0xFFF9F5EF),
+              Color(0xFFFDFBF7),
+              Color(0xFFF9F5EF),
             ],
-            stops: const [0.0, 0.6, 1.0],
+            stops: [0.0, 0.6, 1.0],
           ),
           borderRadius: BorderRadius.circular(32),
           boxShadow: [

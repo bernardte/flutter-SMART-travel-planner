@@ -1006,9 +1006,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove guide?'),
+        title: const Text('Remove Post?'),
         content: const Text(
-            'This will permanently delete your travel guide. Are you sure?'),
+            'This will permanently delete your post. Are you sure?'),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         actions: [

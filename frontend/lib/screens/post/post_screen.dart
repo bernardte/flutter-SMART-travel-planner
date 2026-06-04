@@ -26,7 +26,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
 
   File? _image;
   String _privacy = 'public';
-  List<String> _tags = [];
+  final List<String> _tags = [];
   List<Map<String, dynamic>> _itineraries = [];
   String? _selectedItineraryId;
   bool _saving = false;

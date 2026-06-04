@@ -118,7 +118,7 @@ class GuideCard extends StatelessWidget {
                       const Spacer(),
                       if (guide.author != null) ...[
                         GestureDetector(
-                          onTap: isAuthenticate != false && onAuthorTap != null
+                          onTap: isAuthenticate != false
                               ? onAuthorTap
                               : null,
                           child: Row(

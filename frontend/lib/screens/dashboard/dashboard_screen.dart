@@ -231,12 +231,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             onEdit: () => context
                                 .push('/trips/${filtered[i].id}/edit'),
                             onDelete: () async {
-                              final ok = await ref
-                                  .read(tripProvider.notifier)
-                                  .deleteTrip(filtered[i].id);
-                              if (!ok && context.mounted) {
-                                AppSnackbar.error(
-                                    context, 'Failed to delete trip');
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(20)),
+                                  title: const Text('Delete trip?'),
+                                  content: const Text(
+                                      'This trip will be permanently deleted. Are you sure?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, true),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red[600]),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true) {
+                                final ok = await ref
+                                    .read(tripProvider.notifier)
+                                    .deleteTrip(filtered[i].id);
+                                if (!ok && context.mounted) {
+                                  AppSnackbar.error(
+                                      context, 'Failed to delete trip');
+                                }
                               }
                             },
                             onCreateGuide:
@@ -490,8 +517,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           icon: const Icon(Icons.logout, color: Colors.grey),
           tooltip: 'Logout',
           onPressed: () async {
-            await ref.read(authProvider.notifier).logout();
-            if (mounted) context.go('/home');
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                title: const Text('Logout?'),
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: TextButton.styleFrom(
+                        foregroundColor: Colors.red[600]),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true) {
+              await ref.read(authProvider.notifier).logout();
+              if (mounted) context.go('/home');
+            }
           },
         ),
       ],

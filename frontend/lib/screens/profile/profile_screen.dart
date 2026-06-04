@@ -72,8 +72,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await ref.read(userRepositoryProvider).followUnfollowUser(user.id);
       if (!mounted) return;
+      final nowFollowing = !_isFollowing;
+      final newFollowers = nowFollowing
+          ? [...user.followers, currentUser.id]
+          : user.followers.where((id) => id != currentUser.id).toList();
       setState(() {
-        _isFollowing = !_isFollowing;
+        _isFollowing = nowFollowing;
         _profileUser = UserModel(
           id: user.id,
           email: user.email,
@@ -81,12 +85,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           name: user.name,
           profilePicture: user.profilePicture,
           bio: user.bio,
-          followers: _isFollowing
-              ? [...user.followers, currentUser.id]
-              : user.followers.where((id) => id != currentUser.id).toList(),
+          followers: newFollowers,
           following: user.following,
         );
       });
+      // Sync the logged-in user's following list so community screen stays in sync
+      final newFollowingList = nowFollowing
+          ? [...currentUser.following, user.id]
+          : currentUser.following.where((id) => id != user.id).toList();
+      ref.read(authProvider.notifier).updateUser(UserModel(
+        id: currentUser.id,
+        email: currentUser.email,
+        username: currentUser.username,
+        name: currentUser.name,
+        profilePicture: currentUser.profilePicture,
+        bio: currentUser.bio,
+        followers: currentUser.followers,
+        following: newFollowingList,
+      ));
     } catch (e) {
       if (mounted) AppSnackbar.error(context, 'Failed: $e');
     } finally {
@@ -156,8 +172,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         color: Colors.white),
                     tooltip: 'Logout',
                     onPressed: () async {
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) context.go('/home');
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          title: const Text('Logout?'),
+                          content:
+                              const Text('Are you sure you want to logout?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red[600]),
+                              child: const Text('Logout'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await ref.read(authProvider.notifier).logout();
+                        if (context.mounted) context.go('/home');
+                      }
                     },
                   ),
                 ],

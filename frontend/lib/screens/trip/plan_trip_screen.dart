@@ -877,8 +877,7 @@ class _MapPillButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color,
-  });
+  }) : color = null;
 
   @override
   Widget build(BuildContext context) {

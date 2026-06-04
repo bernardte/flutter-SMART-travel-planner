@@ -1,8 +1,8 @@
 // lib/screens/trip_plan/view_trip_plan_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
@@ -157,13 +157,23 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
               widget.tripPlanId, commentId, _editCtrl.text.trim());
       if (!mounted) return;
       setState(() {
-        _comments =
-            _comments.map((c) => c.id == commentId ? updated : c).toList();
+        _comments = _comments.map((c) {
+          if (c.id != commentId) return c;
+          // The PATCH response returns an unpopulated user field (just an ID),
+          // so preserve the existing user and only take the updated content.
+          return CommentModel(
+            id: c.id,
+            user: c.user,
+            content: updated.content,
+            createdAt: c.createdAt,
+          );
+        }).toList();
         _editingCommentId = null;
       });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         AppSnackbar.error(context, 'Failed to update comment');
+      }
     }
   }
 
@@ -225,9 +235,9 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
 
                 // ── Itinerary sections ──────────────────────────────────
                 if (sections.isNotEmpty) ...[
-                  SliverToBoxAdapter(
+                  const SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
                       child: _SectionHeader(
                           icon: Icons.route_rounded, label: 'Itinerary'),
                     ),
@@ -397,9 +407,10 @@ class _ViewTripPlanScreenState extends ConsumerState<ViewTripPlanScreen> {
           icon: const Icon(Icons.share_outlined, color: _kBlue),
           tooltip: 'Share',
           onPressed: () {
-            Clipboard.setData(
-                ClipboardData(text: 'Travel Guide: $title'));
-            AppSnackbar.success(context, 'Link copied!');
+            Share.share(
+              'Check out this travel guide: $title',
+              subject: title,
+            );
           },
         ),
         if (isOwner && onEdit != null)
@@ -745,7 +756,7 @@ class _SectionTile extends StatelessWidget {
                   const SizedBox(height: 12),
                 ],
                 if (notes.isNotEmpty) ...[
-                  _BodyLabel(
+                  const _BodyLabel(
                       icon: Icons.notes_rounded, label: 'Notes'),
                   const SizedBox(height: 6),
                   Container(
@@ -1274,7 +1285,7 @@ class _CommentTile extends StatelessWidget {
                         color: _kBlue.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(7),
                       ),
-                      child: Icon(Icons.edit_outlined,
+                      child: const Icon(Icons.edit_outlined,
                           size: 13, color: _kBlue),
                     ),
                   ),

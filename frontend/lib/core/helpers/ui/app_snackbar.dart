@@ -78,19 +78,19 @@ class _StyledSnackContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: startColor.withOpacity(0.4),
+            color: startColor.withValues(alpha: 0.4),
             blurRadius: 16,
             offset: const Offset(0, 8),
             spreadRadius: -2,
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
         // 精致内边框（增加层次感）
-        border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -104,7 +104,7 @@ class _StyledSnackContent extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: Colors.white, size: 22),
